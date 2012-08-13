@@ -1,0 +1,44 @@
+{
+  // User posting, need to write the post to all of the user's followers' feeds
+  // Ex: _flx.realtime("client.gravity.actions.post", { id: 'user:4ff334', postId: 'post:500033' })
+  "client.gravity.actions.post": [{
+    "targets": ["[id].followerIds.feedIds"],
+    "add": "postId",
+    "ttl": "1 month"
+  }],
+
+  // User following another user
+  // Ex: _flx.realtime("client.gravity.actions.follow.user", { followerId: 'user:4ff448', followedId: 'user:50000d' })
+  "client.gravity.actions.follow": [{
+    "targets": ["[followedId].followerIds"],
+    "add": "followerId"
+  }],
+
+  // User unfollowing another user
+  // Ex: _flx.realtime("client.gravity.actions.unfollow.user", { followerId: 'user:500001', followedId: 'user:50000d' })
+  "client.gravity.actions.unfollow": [{
+    "targets": ["[followedId].followerIds"],
+    "remove": "followerId"
+  }],
+
+  // Counting user actions
+  // _flx.realtime("client.gravity.actions.arbitraryAction", { id: 'user:4ff334' }
+  "client.gravity.actions": [{
+    "targets": ["['unique']", "[@eventName]", "[@day, @week, @month]"],
+    "add": "@requestIP",
+    "ttl": "3 months"
+  },
+  {
+    "targets": ["['gross']", "[@eventName]", "[@day, @week, @month]", "[@geoState, @geoCity]"],
+    "add": "@uniqueId",
+    "ttl": "3 months"
+  }],
+
+  // Identify an admin with a user
+  // _flx.realtime("domain.identify.user", { userId: 'user:abc', 'adminId': 'admin:xyz' })
+  "domain.identify.user": [{
+    "targets": ["[userId].adminId"],
+    "replaceWith": "adminId"
+  }]
+
+}
