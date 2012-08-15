@@ -20,28 +20,42 @@ class MQLTranslator
       next unless event_name.start_with?(event_filter)
       handlers.each do |handler|
         sorted_sets = resolve_keys(handler['targets'], event_name, args)
-        sorted_sets.each do |set_name|
-          value_definition = handler['add'] || handler['remove'] || handler['replaceWith']
-          raise "Must specify either an add, remove, or replaceWith handler" unless value_definition
-          value = resolve_id(value_definition, event_name, args)
-          if handler['add']
-            @log.debug { "* Appending '#{value}' to #{set_name}" }
-            @redis.zadd(set_name, Time.now.to_i, value)
-          elsif handler['remove']
-            @log.debug { "* Removing '#{value}' from #{set_name}" }
-            @redis.zrem(set_name, value)
-          else
-            @log.debug { "* Clearing out the set #{set_name} and adding the value #{value}" }
-            @redis.del(set_name)
-            @redis.zadd(set_name, Time.now.to_i, value)
+        op_counter = @redis.incrby('flux:op_counter', sorted_sets.length) - sorted_sets.length
+        @redis.pipelined do 
+          sorted_sets.each_with_index do |set_name, i|
+            value_definition = handler['add'] || handler['remove'] || handler['replaceWith']
+            raise "Must specify either an add, remove, or replaceWith handler" unless value_definition
+            value = resolve_id(value_definition, event_name, args)
+            if handler['add']
+              @log.debug { "* Appending '#{value}' to #{set_name}" }
+              @redis.zadd(set_name, op_counter + i, value)
+            elsif handler['remove']
+              @log.debug { "* Removing '#{value}' from #{set_name}" }
+              @redis.zrem(set_name, value)
+            else
+              @log.debug { "* Clearing out the set #{set_name} and adding the value #{value}" }
+              @redis.del(set_name)
+              @redis.zadd(set_name, op_counter + 1, value)
+            end
           end
         end
       end
     end
+  end    
+
+  def get_count(query)
+    @redis.zcard(query)
   end
 
-  def run_query(query)
-    query.start_with?("#") ? @redis.zcard(query[1..-1]) : @redis.zrevrange(query, 0, -1)
+  def run_query(query, max_results, start)
+    start ||= "inf"
+    raw_results = @redis.zrevrangebyscore(query, "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})    
+    results = raw_results.map{ |result| result.first }
+    if results.length < max_results
+      { 'results' => results }
+    else
+      { 'results' => results, 'next' => raw_results.last.last }
+    end
   end
 
   def resolve_id(id, event_name, args)

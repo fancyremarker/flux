@@ -56,12 +56,13 @@ expands targets into the list of labels:
 
     [a:b:d, a:b:e, a:b:f, a:c:d, a:c:e, a:c:f]
 
-and adds a hash computed from the attributes to the set associated with each 
-of those labels.
+and adds the request IP to the set associated with each of those labels.
 
 The dot notation allows you to join values together to form a list of keys. An 
 expression of the form X.Y means "for each string L in X, replace L by all 
-strings in the set associated with the label L:Y. For example, 
+strings in the set associated with the label L:Y. Note that for an expression X.Y
+to be valid, X must be a list, so a chain of ids joined by dots has to start off 
+with a literal list of ids. For example, 
 
     targets: ["['a','b'].artwork_ids"]
     add: "'artwork:123'"
