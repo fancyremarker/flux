@@ -3,8 +3,7 @@
   // Ex: _flx.realtime("client.gravity.actions.post", { id: 'user:4ff334', postId: 'post:500033' })
   "client.gravity.actions.post": [{
     "targets": ["[id].followerIds.feedIds"],
-    "add": "postId",
-    "ttl": "1 month"
+    "add": "postId"
   }],
 
   // User following another user
@@ -25,13 +24,11 @@
   // _flx.realtime("client.gravity.actions.arbitraryAction", { id: 'user:4ff334' }
   "client.gravity.actions": [{
     "targets": ["['unique']", "[@eventName]", "[@day, @week, @month]"],
-    "add": "@requestIP",
-    "ttl": "3 months"
+    "add": "@requestIP"
   },
   {
     "targets": ["['gross']", "[@eventName]", "[@day, @week, @month]", "[@geoState, @geoCity]"],
-    "add": "@uniqueId",
-    "ttl": "3 months"
+    "add": "@uniqueId"
   }],
 
   // Identify an admin with a user

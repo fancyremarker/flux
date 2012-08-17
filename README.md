@@ -19,7 +19,9 @@ list of users they follow and the list of posts by each of those users, sorted b
 the join at query time in Flux, the 'post' event is instead translated into multiple writes onto the feeds of all followers 
 of the posting user, which makes querying a feed a very fast operation.
 
-More information:
-=================
+More information
+================
 
+* [Getting Started](flux/tree/master/doc/GettingStarted.md)
+* [Running Tests](flux/tree/master/doc/RunningTests.md)
 * [MaQuery Language](flux/tree/master/doc/MQL.md)

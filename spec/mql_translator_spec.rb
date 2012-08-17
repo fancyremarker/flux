@@ -1,4 +1,4 @@
-require './app/mql_translator.rb'
+require './mql_translator.rb'
 
 describe MQLTranslator do
 
@@ -63,6 +63,10 @@ describe MQLTranslator do
   end
 
   describe "event processing" do
+    before(:each) do
+      @redis.stub(:incrby) { 1000 }
+      @redis.stub(:pipelined) { |&block| block.call }
+    end
     it "translates an add event to a redis zadd" do
       schema = { 
         'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
