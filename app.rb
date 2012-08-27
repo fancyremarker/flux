@@ -10,10 +10,10 @@ require './queued_event.rb'
 schema = JSON.parse(File.open('config/schema.json').read)
 log = Logger.new(STDOUT)
 log.level = Logger::DEBUG
-translator = MQLTranslator.new(Redis.new, schema, log)
+translator = MQLTranslator.new(Redis.new, schema, {logger: log})
 
 
-# Fire an event
+# Receive an event
 get '/event/:event' do
   event_name = params.delete('event')
   Resque.enqueue(QueuedEvent, event_name, params)

@@ -1,27 +1,30 @@
 {
   // User posting, need to write the post to all of the user's followers' feeds
-  // Ex: _flx.realtime("client.gravity.actions.post", { id: 'user:4ff334', postId: 'post:500033' })
+  // Ex: GET http://flux.art.sy/event/client.gravity.actions.post?id=user4ff34&postId=post500033 
+  // adds "post500033" to the X:feedIds set, for each X in the set user4ff34:followerIds
   "client.gravity.actions.post": [{
     "targets": ["[id].followerIds.feedIds"],
     "add": "postId"
   }],
 
   // User following another user
-  // Ex: _flx.realtime("client.gravity.actions.follow.user", { followerId: 'user:4ff448', followedId: 'user:50000d' })
+  // Ex: GET http://flux.art.sy/event/client.gravity.actions.follow.user?followerId=user4ff448&followedId=user50000d
+  // adds "user4ff448" to the set user50000d:followerIds
   "client.gravity.actions.follow": [{
     "targets": ["[followedId].followerIds"],
-    "add": "followerId"
+    "add": "followerId",
+    "expires": false
   }],
 
   // User unfollowing another user
-  // Ex: _flx.realtime("client.gravity.actions.unfollow.user", { followerId: 'user:500001', followedId: 'user:50000d' })
+  // Ex: GET http://flux.art.sy/event/client.gravity.actions.unfollow.user?followerId=user500001&followedId=user50000d
+  // removes "user500001" from the set user50000d:followerIds
   "client.gravity.actions.unfollow": [{
     "targets": ["[followedId].followerIds"],
     "remove": "followerId"
   }],
 
   // Counting user actions
-  // _flx.realtime("client.gravity.actions.arbitraryAction", { id: 'user:4ff334' }
   "client.gravity.actions": [{
     "targets": ["['unique']", "[@eventName]", "[@day, @week, @month]"],
     "add": "@requestIP"
@@ -32,10 +35,12 @@
   }],
 
   // Identify an admin with a user
-  // _flx.realtime("domain.identify.user", { userId: 'user:abc', 'adminId': 'admin:xyz' })
+  // Ex: GET http://flux.art.sy/event/domain.identify.user?userId=user500002&adminId=user500003
+  // replaces the singleton set user500002:adminId with the contents "user500003"
   "domain.identify.user": [{
     "targets": ["[userId].adminId"],
-    "replaceWith": "adminId"
+    "replaceWith": "adminId",
+    "expires": false
   }]
 
 }
