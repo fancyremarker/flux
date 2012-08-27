@@ -4,11 +4,12 @@ require 'logger'
 
 class MQLTranslator
 
-  def initialize(redis, schema, logger=nil)
+  def initialize(redis, schema, options={})
     @redis = redis
     @schema = schema
-    if logger
-      @log = logger
+    @max_transient_values = options[:max_transient_values] || 1000000
+    if options[:logger]
+      @log = options[:logger]
     else
       @log = Logger.new(STDOUT)
       @log.level = Logger::FATAL
@@ -29,6 +30,11 @@ class MQLTranslator
             if handler['add']
               @log.debug { "* Appending '#{value}' to #{set_name}" }
               @redis.zadd(set_name, op_counter + i, value)
+              if handler['expires'] != false
+                min_score = [op_counter - @max_transient_values, 0].max
+                @log.debug { "* Removing any keys with score less than #{min_score}" }
+                @redis.zremrangebyscore(set_name, "-inf", "(#{min_score}")
+              end
             elsif handler['remove']
               @log.debug { "* Removing '#{value}' from #{set_name}" }
               @redis.zrem(set_name, value)

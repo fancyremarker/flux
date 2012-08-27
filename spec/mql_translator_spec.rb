@@ -66,6 +66,7 @@ describe MQLTranslator do
     before(:each) do
       @redis.stub(:incrby) { 1000 }
       @redis.stub(:pipelined) { |&block| block.call }
+      @redis.stub(:zremrangebyscore) { 0 }
     end
     it "translates an add event to a redis zadd" do
       schema = { 
@@ -91,6 +92,41 @@ describe MQLTranslator do
       @redis.should_receive(:del).with('mydata')
       @redis.should_receive(:zadd).with('mydata', anything(), 'foobar')
       translator.process_event('myevent', {'id' => 'foobar'})
+    end
+    it "manages memory taken up by events kept in sets by keeping only the most recent entries" do
+      schema = { 
+        'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
+      }
+      translator = MQLTranslator.new(@redis, schema, {max_transient_values: 5})
+      i = 0
+      @redis.stub(:incrby) { i = i+1 }
+      @redis.stub(:zadd) { 0 }
+      @redis.stub(:zremrangebyscore) { 0 }
+      6.times { |i| translator.process_event('myevent', {'id' => "foobar #{i}"}) }
+      @redis.unstub(:zadd)
+      @redis.unstub(:zremrangebyscore)
+      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar 6').ordered
+      @redis.should_receive(:zremrangebyscore).with('mydata', '-inf', '(1').ordered
+      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar 7').ordered
+      @redis.should_receive(:zremrangebyscore).with('mydata', '-inf', '(2').ordered
+      2.times { |i| translator.process_event('myevent', {'id' => "foobar #{6 + i}"}) }
+    end
+    it "doesn't run any deletions on a set if a handler declares expires: false" do
+      schema = { 
+        'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id', 'expires' => false}]
+      }
+      translator = MQLTranslator.new(@redis, schema, {max_transient_values: 5})
+      i = 0
+      @redis.stub(:incrby) { i = i+1 }
+      @redis.stub(:zadd) { 0 }
+      @redis.stub(:zremrangebyscore) { 0 }
+      6.times { |i| translator.process_event('myevent', {'id' => "foobar #{i}"}) }
+      @redis.unstub(:zadd)
+      @redis.unstub(:zremrangebyscore)
+      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar 6').ordered
+      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar 7').ordered
+      @redis.should_not_receive(:zremrangebyscore)
+      2.times { |i| translator.process_event('myevent', {'id' => "foobar #{6 + i}"}) }
     end
     it "triggers exactly the handlers that are keyed by prefixes of the event name" do
       schema = { 
