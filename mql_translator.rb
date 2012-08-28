@@ -2,12 +2,14 @@ require 'redis'
 require 'json'
 require 'logger'
 
+require './hyperloglog.rb'
+
 class MQLTranslator
 
-  def initialize(redis, schema, options={})
+  def initialize(redis, counter, schema, options={})
     @redis = redis
+    @counter = counter
     @schema = schema
-    @max_transient_values = options[:max_transient_values] || 1000000
     if options[:logger]
       @log = options[:logger]
     else
@@ -22,27 +24,27 @@ class MQLTranslator
       handlers.each do |handler|
         sorted_sets = resolve_keys(handler['targets'], event_name, args)
         op_counter = @redis.incrby('flux:op_counter', sorted_sets.length) - sorted_sets.length
-        @redis.pipelined do 
-          sorted_sets.each_with_index do |set_name, i|
-            value_definition = handler['add'] || handler['remove'] || handler['replaceWith']
-            raise "Must specify either an add, remove, or replaceWith handler" unless value_definition
-            value = resolve_id(value_definition, event_name, args)
-            if handler['add']
-              @log.debug { "* Appending '#{value}' to #{set_name}" }
+        sorted_sets.each_with_index do |set_name, i|
+          value_definition = handler['add'] || handler['remove']
+          raise "Must specify either an add or remove handler" unless value_definition
+          value = resolve_id(value_definition, event_name, args)
+          store_values = handler['maxStoredValues'] != 0
+          if handler['add']
+            if store_values
+              @log.debug { "Appending '#{value}' to #{set_name}" }
               @redis.zadd(set_name, op_counter + i, value)
-              if handler['expires'] != false
-                min_score = [op_counter - @max_transient_values, 0].max
-                @log.debug { "* Removing any keys with score less than #{min_score}" }
-                @redis.zremrangebyscore(set_name, "-inf", "(#{min_score}")
-              end
-            elsif handler['remove']
-              @log.debug { "* Removing '#{value}' from #{set_name}" }
-              @redis.zrem(set_name, value)
-            else
-              @log.debug { "* Clearing out the set #{set_name} and adding the value #{value}" }
-              @redis.del(set_name)
-              @redis.zadd(set_name, op_counter + 1, value)
             end
+            if handler['maxStoredValues'] && store_values
+              @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
+              @redis.zremrangebyrank(set_name, 0, -1 - handler['maxStoredValues'])
+            end
+            @log.debug { "Incrementing distinct count for #{set_name}" }
+            @counter.add("flux:distinct:#{set_name}", value)
+            @log.debug { "Incrementing gross count for #{set_name}" }
+            @redis.incr("flux:gross:#{set_name}")
+          elsif handler['remove']
+            @log.debug { "Removing '#{value}' from #{set_name}" }
+            @redis.zrem(set_name, value)
           end
         end
       end
@@ -51,6 +53,14 @@ class MQLTranslator
 
   def get_count(query)
     @redis.zcard(query)
+  end
+
+  def get_distinct_count(query)
+    @counter.count("flux:distinct:#{query}")
+  end
+
+  def get_gross_count(query)
+    @redis.get("flux:gross:#{query}").to_i
   end
 
   def run_query(query, max_results, start)

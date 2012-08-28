@@ -76,71 +76,19 @@ could apply dot notation again to write artist ids:
 
 Logically, the "add" command adds the value to a set whose values are sorted
 by the time they're added to the set. There's also a "remove" command that
-removes items from the set and a "replaceWith" command that clears the underlying
-set and adds the associated value.
+removes items from the set.
 
-Querying MQL
-============
+You can bound the size of sets using the maxStoredValues field:
 
-Any set or list can be queried by specifying its name:
+    targets: ["['a','b'].artworks_ids.artist_ids"]
+    add: "'artist:345'"
+    maxStoredValues: 10
 
-    artwork:123:artist_ids
+This will bound the size of the set at 10 items, removing values in a least
+recently added fashion. If you don't specify maxStoredValues, the size of
+the set is unbounded. A maxStoredValues value of 1 can be used to simulate
+a simple variable, since any addition to the set will evict the previous
+singleton member. A maxStoredValues value of 0 can be used if you're only
+interested in storing counts for an event, but never want to actually query
+the members of the set.
 
-You can query the size of a set or list by prefixing the query with #:
-
-    #artwork:123:artist_ids
-
-A Sample MQL Schema
-===================
-
-Here's a more involved schema with some more advanced definitions:
-
-    {
-      // User posting, need to write the post to all of the user's followers' feeds
-      // Example: _flx.event("client.gravity.actions.post", { id: 'user:4ff334', postId: 'post:500033' })
-      // Assuming that the set user:4ff3344:followerIds contains user:50000dd and user:50000ff, this
-      // event triggers the write 'post:500033' to the sets user:50000dd:feedIds and user:50000ff:feedIds
-      "client.gravity.actions.post": [{
-        "targets": ["[id].followerIds.feedIds"],
-        "add": "postId"
-      }],
-
-      // User following another user
-      // Example: _flx.event("client.gravity.actions.follow.user", { followerId: 'user:4ff448', followedId: 'user:50000d' })
-      // triggers the write 'user:4ff448' to the sets defined by strings contained in the set 'user:50000d:followerIds'
-      "client.gravity.actions.follow": [{
-        "targets": ["[followedId].followerIds"],
-        "add": "followerId"
-      }],
-
-      // User unfollowing another user
-      // Example: _flx.event("client.gravity.actions.unfollow.user", { followerId: 'user:4ff448', followedId: 'user:50000d' })
-      // triggers the write 'user:4ff448' to the sets defined by strings contained in the set 'user:50000d:followerIds'
-      "client.gravity.actions.unfollow": [{
-        "targets": ["[followedId].followerIds"],
-        "remove": "followerId"
-      }],
-
-      // Counting user actions:
-      // Example: _flx.event("client.gravity.actions.logout", { id: 'user:4ff334' }
-      // triggers the write of a hash computed from { id: 'user:4ff334' } to the sets
-      // unique:client.gravity.actions.logout:2012-08-08, unique:client.gravity.actions.logout:2012-08, 
-      // and unique:client.gravity.actions.logout:2012. It also triggers the write '1' to the lists
-      // gross:client.gravity.actions.logout:2012-08-08:NY, gross:client.gravity.actions.logout:2012-08-08:NY-NY, etc.
-      "client.gravity.actions": [{
-        "targets": ["['unique']", "[@eventName]", "[@day, @week, @month]"],
-        "add": "@requestIP"
-      },
-      {
-        "targets": ["['gross']", "[@eventName]", "[@day, @week, @month]", "[@state, @city]"],
-        "add": "@uniqueId"
-      }],
-
-      // Identify an admin with a user:
-      // _flx.event("domain.identify.user", { userId: 'user:abc', 'adminId': 'admin:xyz' })
-      // triggers the write 'admin:xyz' to the set 'user:abc:adminId', after clearing that set
-      "domain.identify.user": [{
-        "targets": ["[userId].adminId"],
-        "replaceWith": "adminId"
-      }]
-    }

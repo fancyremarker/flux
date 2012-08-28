@@ -4,11 +4,14 @@ describe MQLTranslator do
 
   before :each do
     @redis = Object.new
+    @counter = Object.new
+    @counter.stub(:add) {}
+    @counter.stub(:count) {}
   end
 
   describe "identifier resolution" do
     before :each do
-      @translator = MQLTranslator.new(@redis, {})
+      @translator = MQLTranslator.new(@redis, @counter, {})
     end
     it "should recognize server-defined reserved ids" do
       @translator.resolve_id("@eventName", "foo.bar", {}).should == "foo.bar"
@@ -29,7 +32,7 @@ describe MQLTranslator do
 
   describe "key resolution" do
     before :each do
-      @translator = MQLTranslator.new(@redis, {})
+      @translator = MQLTranslator.new(@redis, @counter, {})
     end
     it "resolves a singleton id into itself" do
       @translator.resolve_keys(["['foobar']"], 'mock.event.name', {'mock' => 'args'}).should == ['foobar']
@@ -66,13 +69,14 @@ describe MQLTranslator do
     before(:each) do
       @redis.stub(:incrby) { 1000 }
       @redis.stub(:pipelined) { |&block| block.call }
-      @redis.stub(:zremrangebyscore) { 0 }
+      @redis.stub(:zremrangebyrank) { 0 }
+      @redis.stub(:incr) { }
     end
     it "translates an add event to a redis zadd" do
       schema = { 
         'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
       }
-      translator = MQLTranslator.new(@redis, schema)
+      translator = MQLTranslator.new(@redis, @counter, schema)
       @redis.should_receive(:zadd).with('mydata', anything(), 'foobar')
       translator.process_event('myevent', {'id' => 'foobar'})
     end
@@ -80,53 +84,19 @@ describe MQLTranslator do
       schema = { 
         'myevent' => [{'targets' => ["['mydata']"], 'remove' => 'id'}]
       }
-      translator = MQLTranslator.new(@redis, schema)
+      translator = MQLTranslator.new(@redis, @counter, schema)
       @redis.should_receive(:zrem).with('mydata', 'foobar')
       translator.process_event('myevent', {'id' => 'foobar'})
     end
-    it "translates a replaceWith event to a redis rem, followed by a zadd" do
+    it "respects maxStoredValues directives by removing least recently added values from sets" do
       schema = { 
-        'myevent' => [{'targets' => ["['mydata']"], 'replaceWith' => 'id'}]
+        'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id', 'maxStoredValues' => 3}]
       }
-      translator = MQLTranslator.new(@redis, schema)
-      @redis.should_receive(:del).with('mydata')
-      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar')
-      translator.process_event('myevent', {'id' => 'foobar'})
-    end
-    it "manages memory taken up by events kept in sets by keeping only the most recent entries" do
-      schema = { 
-        'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
-      }
-      translator = MQLTranslator.new(@redis, schema, {max_transient_values: 5})
-      i = 0
-      @redis.stub(:incrby) { i = i+1 }
-      @redis.stub(:zadd) { 0 }
-      @redis.stub(:zremrangebyscore) { 0 }
-      6.times { |i| translator.process_event('myevent', {'id' => "foobar #{i}"}) }
-      @redis.unstub(:zadd)
-      @redis.unstub(:zremrangebyscore)
-      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar 6').ordered
-      @redis.should_receive(:zremrangebyscore).with('mydata', '-inf', '(1').ordered
-      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar 7').ordered
-      @redis.should_receive(:zremrangebyscore).with('mydata', '-inf', '(2').ordered
-      2.times { |i| translator.process_event('myevent', {'id' => "foobar #{6 + i}"}) }
-    end
-    it "doesn't run any deletions on a set if a handler declares expires: false" do
-      schema = { 
-        'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id', 'expires' => false}]
-      }
-      translator = MQLTranslator.new(@redis, schema, {max_transient_values: 5})
-      i = 0
-      @redis.stub(:incrby) { i = i+1 }
-      @redis.stub(:zadd) { 0 }
-      @redis.stub(:zremrangebyscore) { 0 }
-      6.times { |i| translator.process_event('myevent', {'id' => "foobar #{i}"}) }
-      @redis.unstub(:zadd)
-      @redis.unstub(:zremrangebyscore)
-      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar 6').ordered
-      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar 7').ordered
-      @redis.should_not_receive(:zremrangebyscore)
-      2.times { |i| translator.process_event('myevent', {'id' => "foobar #{6 + i}"}) }
+      translator = MQLTranslator.new(@redis, @counter, schema)
+      @redis.stub(:zadd) { }
+      @redis.unstub(:zremrangebyrank)
+      @redis.should_receive(:zremrangebyrank).with('mydata', 0, -4).exactly(8).times
+      8.times { |i| translator.process_event('myevent', {'id' => "foobar#{i}"}) }
     end
     it "triggers exactly the handlers that are keyed by prefixes of the event name" do
       schema = { 
@@ -136,7 +106,7 @@ describe MQLTranslator do
         'a.d.c' => [{'targets' => ["['counter:a:d:c']"], 'add' => 'id'}],
         'a.b.c.d.e' => [{'targets' => ["['counter:a:b:c:d:e']"], 'add' => 'id'}]
       }
-      translator = MQLTranslator.new(@redis, schema)
+      translator = MQLTranslator.new(@redis, @counter, schema)
       @redis.should_receive(:zadd).with('counter:a', anything(), 'foobar')
       @redis.should_receive(:zadd).with('counter:a:b', anything(), 'foobar')
       @redis.should_receive(:zadd).with('counter:a:b:c', anything(), 'foobar')
@@ -148,7 +118,7 @@ describe MQLTranslator do
                 {'targets' => ["['counter:b']"], 'add' => 'id'},
                 {'targets' => ["['counter:c']"], 'add' => 'id'}]
       }
-      translator = MQLTranslator.new(@redis, schema)
+      translator = MQLTranslator.new(@redis, @counter, schema)
       @redis.should_receive(:zadd).with('counter:a', anything(), 'foobar').ordered
       @redis.should_receive(:zadd).with('counter:b', anything(), 'foobar').ordered
       @redis.should_receive(:zadd).with('counter:c', anything(), 'foobar').ordered

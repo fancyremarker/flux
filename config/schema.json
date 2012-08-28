@@ -4,7 +4,8 @@
   // adds "post500033" to the X:feedIds set, for each X in the set user4ff34:followerIds
   "client.gravity.actions.post": [{
     "targets": ["[id].followerIds.feedIds"],
-    "add": "postId"
+    "add": "postId",
+    "maxStoredValues": 1000
   }],
 
   // User following another user
@@ -12,8 +13,7 @@
   // adds "user4ff448" to the set user50000d:followerIds
   "client.gravity.actions.follow": [{
     "targets": ["[followedId].followerIds"],
-    "add": "followerId",
-    "expires": false
+    "add": "followerId"
   }],
 
   // User unfollowing another user
@@ -26,12 +26,14 @@
 
   // Counting user actions
   "client.gravity.actions": [{
-    "targets": ["['unique']", "[@eventName]", "[@day, @week, @month]"],
-    "add": "@requestIP"
+    "targets": ["[@eventName]", "[@day, @week, @month]"],
+    "add": "@requestIP",
+    "maxStoredValues": 0
   },
   {
-    "targets": ["['gross']", "[@eventName]", "[@day, @week, @month]", "[@geoState, @geoCity]"],
-    "add": "@uniqueId"
+    "targets": ["[@eventName]", "[@day, @week, @month]", "[@geoState, @geoCity]"],
+    "add": "@requestIP",
+    "maxStoredValues": 0
   }],
 
   // Identify an admin with a user
@@ -39,8 +41,8 @@
   // replaces the singleton set user500002:adminId with the contents "user500003"
   "domain.identify.user": [{
     "targets": ["[userId].adminId"],
-    "replaceWith": "adminId",
-    "expires": false
+    "add": "adminId",
+    "maxStoredValues": 1
   }]
 
 }

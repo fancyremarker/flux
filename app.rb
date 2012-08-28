@@ -6,11 +6,14 @@ require 'sinatra'
 
 require './mql_translator.rb'
 require './queued_event.rb'
+require './hyperloglog.rb'
 
 schema = JSON.parse(File.open('config/schema.json').read)
 log = Logger.new(STDOUT)
 log.level = Logger::DEBUG
-translator = MQLTranslator.new(Redis.new, schema, {logger: log})
+redis = Redis.new
+counter = HyperLogLog.new(redis, 10)
+translator = MQLTranslator.new(redis, counter, schema, {logger: log})
 
 
 # Receive an event
@@ -29,8 +32,20 @@ get '/query/:key' do
   translator.run_query(key, max_results, cursor).to_json
 end
 
-# Get a count
+# Get a count of cached values
 get '/count/:key' do
   content_type :json
   { 'count' => translator.get_count(params['key']) }.to_json
+end
+
+# Get a distinct count
+get '/distinct/:key' do
+  content_type :json
+  { 'count' => translator.get_distinct_count(params['key']) }.to_json
+end
+
+# Get a gross count
+get '/gross/:key' do
+  content_type :json
+  { 'count' => translator.get_gross_count(params['key']) }.to_json
 end
