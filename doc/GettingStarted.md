@@ -80,15 +80,15 @@ launches and monitors 3 processes: the Flux Sinatra app, a Resque
 worker, and the Resque Sinatra app. Launch all three in a development
 environment with
 
-    $ bundle exec foreman start -f Procfile.dev
+    $ bundle exec foreman start
 
-The Flux Sinatra app runs on localhost:8081 and the Resque admin app
-runs on localhost:8082.
+The Flux Sinatra app runs on localhost:5000 and the Resque admin app
+runs on localhost:5100.
 
 You can try out generating events and running queries via curl:
 
-    $ curl "http://localhost:8081/event/client.gravity.actions.follow.user?followerId=user2&followedId=user1"
-    $ curl "http://localhost:8081/event/client.gravity.actions.post?id=user1&postId=post1"
-    $ curl http://localhost:8081/query/user2:feedIds && echo
+    $ curl "http://localhost:5000/event/client.gravity.actions.follow.user?followerId=user2&followedId=user1"
+    $ curl "http://localhost:5000/event/client.gravity.actions.post?id=user1&postId=post1"
+    $ curl http://localhost:5000/query/user2:feedIds && echo
     {"results":["post1"]}
     $

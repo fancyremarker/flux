@@ -7,6 +7,7 @@ gem 'murmurhash3', '~> 0.1.3'
 gem 'redis', '~> 3.0.1'
 gem 'resque', '~> 1.21.0'
 gem 'sinatra', '~> 1.3.2'
+gem 'thin', '~> 1.4.1'
 
 group :development, :test do
   gem 'rack-test', '~> 0.6.1'

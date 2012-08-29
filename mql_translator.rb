@@ -18,6 +18,17 @@ class MQLTranslator
     end
   end
 
+  def self.load(settings)
+    schema = JSON.parse(File.open('config/schema.json').read)
+    log = Logger.new(STDOUT)
+    log.level = Logger.const_get settings['log_level']
+    app_redis = Redis.connect(url: settings['app_redis_url'])
+    resque_redis = Redis.connect(url: settings['resque_redis_url'])
+    Resque.redis = resque_redis
+    counter = HyperLogLog.new(app_redis, settings['hyperloglog_precision'])
+    MQLTranslator.new(app_redis, counter, schema, {logger: log})
+  end
+
   def process_event(event_name, args)
     @schema.each_pair do |event_filter, handlers|
       next unless event_name.start_with?(event_filter)
@@ -50,10 +61,6 @@ class MQLTranslator
       end
     end
   end    
-
-  def get_count(query)
-    @redis.zcard(query)
-  end
 
   def get_distinct_count(query)
     @counter.count("flux:distinct:#{query}")
