@@ -25,3 +25,4 @@ More information
 * [Getting Started](flux/tree/master/doc/GettingStarted.md)
 * [Running Tests](flux/tree/master/doc/RunningTests.md)
 * [MaQuery Language](flux/tree/master/doc/MQL.md)
+* [API] (flux/tree/master/doc/API.md)

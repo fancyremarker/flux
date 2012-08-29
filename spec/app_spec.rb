@@ -52,14 +52,40 @@ describe 'Flux' do
     end
   end
 
-  describe "event counts" do
+  describe "cached counts" do
     it "returns the correct count for a set" do
       17.times { |i| get "/event/client.gravity.actions.follow.user?followedId=user0&followerId=user#{i+1}" }
+      2.times { |i| get "/event/client.gravity.actions.unfollow.user?followedId=user0&followerId=user#{i+1}" }
       get "/count/user0:followerIds"
-      JSON.parse(last_response.body)['count'].should == 17
+      JSON.parse(last_response.body)['count'].should == 15
     end
     it "returns 0 if the set doesn't exist" do
       get "/count/badUser:followerIds"
+      JSON.parse(last_response.body)['count'].should == 0
+    end
+  end
+
+  describe "distinct counts" do
+    it "returns a decent correct distinct add event count for a set" do
+      10.times { 50.times { |i| get "/event/client.gravity.actions.follow.user?followedId=user0&followerId=user#{i+1}" } }
+      get "/distinct/user0:followerIds"
+      (JSON.parse(last_response.body)['count'] - 50).abs.should < 10
+    end
+    it "returns 0 if the set doesn't exist" do
+      get "/distinct/badUser:followerIds"
+      JSON.parse(last_response.body)['count'].should == 0
+    end
+  end
+
+  describe "gross counts" do
+    it "returns a correct gross add event count for a set" do
+      17.times { |i| get "/event/client.gravity.actions.follow.user?followedId=user0&followerId=user#{i+1}" }
+      17.times { |i| get "/event/client.gravity.actions.unfollow.user?followedId=user0&followerId=user#{i+1}" }
+      get "/gross/user0:followerIds"
+      JSON.parse(last_response.body)['count'].should == 17
+    end
+    it "returns 0 if the set doesn't exist" do
+      get "/gross/badUser:followerIds"
       JSON.parse(last_response.body)['count'].should == 0
     end
   end
