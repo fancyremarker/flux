@@ -53,19 +53,15 @@ field in the result.
 Counts
 ======
 
-Flux keeps track of three types of counts: the exact current size of the set, an 
-estimate of the total number of distinct items that have ever been stored in the set, 
-and a count of the total number of adds that have been executed against the set.
-
-The current size of the set is available by calling `/count/`:
-
-    http://flux.art.sy/count/user50000d:followerIds
+Flux keeps track of two types of counts: an estimate of the total number of 
+distinct items that have ever been added to the set and a count of the total 
+number of adds that have been executed against the set.
 
 An estimate of the number of distinct items that have ever been in the set is
-available at `/distinct/`:
+available at `/distinct_add_count/`:
 
-    http://flux.art.sy/distinct/user50000d:followerIds
+    http://flux.art.sy/distinct_add_count/user50000d:followerIds
 
 A count of the total number of adds is available at `/gross/`:
 
-    http://flux.art.sy/gross/user50000d:followerIds
+    http://flux.art.sy/gross_add_count/user50000d:followerIds

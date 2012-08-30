@@ -1,3 +1,0 @@
-web: ruby app.rb -o localhost -p 8081
-resque-web: resque-web --foreground -o localhost -p 8082
-resque: rake resque:work

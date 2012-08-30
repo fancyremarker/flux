@@ -1,0 +1,17 @@
+development:
+  log_level: 'DEBUG'
+  hyperloglog_precision: 10
+  app_redis_url: 'redis://localhost:6379/1'
+  resque_redis_url: 'redis://localhost:6379/0'
+
+production:
+  log_level: 'WARN'
+  hyperloglog_precision: 10
+  app_redis_url: 'redis://localhost:6379'
+  resque_redis_url: 'redis://localhost:6380'
+
+test:
+  log_level: 'WARN'
+  hyperloglog_precision: 10
+  app_redis_url: 'redis://localhost:6379/14'
+  resque_redis_url: 'redis://localhost:6379/15'
