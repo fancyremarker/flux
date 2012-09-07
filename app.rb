@@ -6,7 +6,6 @@ require 'sinatra'
 
 require './mql_translator.rb'
 require './queued_event.rb'
-require './hyperloglog.rb'
 
 config = YAML.load(File.read('config/app.yml'))[ENV['RACK_ENV'] || 'development']
 translator = MQLTranslator.load(config)
