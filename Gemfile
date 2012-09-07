@@ -1,6 +1,7 @@
 source "http://rubygems.org"
 
 gem 'foreman', '~> 0.55.0'
+gem 'hyperloglog-redis', '~> 0.1.0'
 gem 'json', '~> 1.7.4'
 gem 'logger', '~> 1.2.8'
 gem 'murmurhash3', '~> 0.1.3'

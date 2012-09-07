@@ -10,6 +10,7 @@
 .irbrc
 .bundle
 .pt
+.vegas
 docs/*
 db/*.sqlite3
 log/*

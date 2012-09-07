@@ -1,8 +1,7 @@
 require 'redis'
+require 'hyperloglog-redis'
 require 'json'
 require 'logger'
-
-require './hyperloglog.rb'
 
 class MQLTranslator
 
