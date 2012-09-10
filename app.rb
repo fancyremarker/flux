@@ -6,6 +6,7 @@ require 'sinatra'
 
 require './mql_translator.rb'
 require './queued_event.rb'
+require './sync_database.rb'
 
 config = YAML.load(File.read('config/app.yml'))[ENV['RACK_ENV'] || 'development']
 translator = MQLTranslator.load(config)
@@ -36,4 +37,11 @@ end
 get '/gross_add_count/:key' do
   content_type :json
   { 'count' => translator.get_gross_count(params['key']) }.to_json
+end
+
+if ENV['SYNC_URL']
+  # Sync the app database with another redis database
+  get '/sync' do
+    Resque.enqueue(SyncDatabase, config, ENV['SYNC_URL'])
+  end
 end
