@@ -21,8 +21,8 @@ class MQLTranslator
     schema = JSON.parse(File.open('config/schema.json').read)
     log = Logger.new(STDOUT)
     log.level = Logger.const_get settings['log_level']
-    app_redis = Redis.connect(url: settings['app_redis_url'])
-    resque_redis = Redis.connect(url: settings['resque_redis_url'])
+    app_redis = Redis.connect(url: (ENV['APP_REDIS_URL'] || settings['app_redis_url']))
+    resque_redis = Redis.connect(url: (ENV['RESQUE_REDIS_URL'] || settings['resque_redis_url']))
     Resque.redis = resque_redis
     counter = HyperLogLog.new(app_redis, settings['hyperloglog_precision'])
     MQLTranslator.new(app_redis, counter, schema, {logger: log})
