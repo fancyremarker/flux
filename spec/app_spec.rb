@@ -152,6 +152,14 @@ describe 'Flux' do
       get "/query/user4:feedIds?max_results=10"
       JSON.parse(last_response.body)['results'].should == ['post4', 'post3', 'post2', 'post1']
     end
+    it "allows you to override the relative order of posts by manually specifying a time" do
+      get "/event/client.gravity.actions.post?id=user1&postId=post1"
+      get "/event/client.gravity.actions.post?id=user2&postId=post2"
+      get "/event/client.gravity.actions.post?id=user3&postId=post3"
+      get "/event/client.gravity.actions.post?id=user1&postId=post4&@time=0"
+      get "/query/user4:feedIds?max_results=10"
+      JSON.parse(last_response.body)['results'].should == ['post3', 'post2', 'post1', 'post4']
+    end
   end
 
 end
