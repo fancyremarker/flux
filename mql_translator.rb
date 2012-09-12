@@ -9,6 +9,7 @@ class MQLTranslator
     @redis = redis
     @counter = counter
     @schema = schema
+    @op_counter_lower_bits = 0
     if options[:logger]
       @log = options[:logger]
     else
@@ -33,7 +34,6 @@ class MQLTranslator
       next unless event_name.start_with?(event_filter)
       handlers.each do |handler|
         sorted_sets = resolve_keys(handler['targets'], event_name, args)
-        op_counter = @redis.incrby('flux:op_counter', sorted_sets.length) - sorted_sets.length
         sorted_sets.each_with_index do |set_name, i|
           value_definition = handler['add'] || handler['remove']
           raise "Must specify either an add or remove handler" unless value_definition
@@ -42,7 +42,7 @@ class MQLTranslator
           if handler['add']
             if store_values
               @log.debug { "Appending '#{value}' to #{set_name}" }
-              @redis.zadd(set_name, op_counter + i, value)
+              @redis.zadd("flux:set:#{set_name}", op_counter(args['@time']), value)
             end
             if handler['maxStoredValues'] && store_values
               @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
@@ -54,7 +54,7 @@ class MQLTranslator
             @redis.incr("flux:gross:#{set_name}")
           elsif handler['remove']
             @log.debug { "Removing '#{value}' from #{set_name}" }
-            @redis.zrem(set_name, value)
+            @redis.zrem("flux:set:#{set_name}", value)
           end
         end
       end
@@ -69,9 +69,15 @@ class MQLTranslator
     @redis.get("flux:gross:#{query}").to_i
   end
 
+  def op_counter(seconds_since_the_epoch = nil)
+    seconds_since_the_epoch ||= Time.now.to_f
+    @op_counter_lower_bits = (@op_counter_lower_bits + 1) % 1024
+    ((seconds_since_the_epoch * 1000).to_i << 10) + @op_counter_lower_bits
+  end
+
   def run_query(query, max_results, start)
     start ||= "inf"
-    raw_results = @redis.zrevrangebyscore(query, "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})    
+    raw_results = @redis.zrevrangebyscore("flux:set:#{query}", "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})    
     results = raw_results.map{ |result| result.first }
     if results.length < max_results
       { 'results' => results }
@@ -82,6 +88,7 @@ class MQLTranslator
 
   def resolve_id(id, event_name, args)
     if id.start_with?('@')
+      return args[id] if args[id]
       case id[1..-1]
       when 'eventName'
         event_name
@@ -98,7 +105,7 @@ class MQLTranslator
       when 'geoCity'
         'NY-NY'
       when 'uniqueId'
-        "#{(Time.now.to_f * 1000).to_i}"
+        op_counter.to_s
       else
         raise "Unknown identifier #{id}"
       end
@@ -119,7 +126,7 @@ class MQLTranslator
         key = components.pop
         entries = entries.map do |entry|
           sorted_set = "#{entry}:#{key}"
-          components.empty? ? sorted_set : @redis.zrevrange(sorted_set, 0, -1)
+          components.empty? ? sorted_set : @redis.zrevrange("flux:set:#{sorted_set}", 0, -1)
         end.flatten
       end
       entries

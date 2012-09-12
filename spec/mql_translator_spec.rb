@@ -53,13 +53,13 @@ describe MQLTranslator do
       @translator.resolve_keys(["[foo].bar"], 'mock.event.name', {'foo' => 'FOO'}).should == ["FOO:bar"]
     end
     it "resolves a sequence of joins correctly" do
-      @redis.should_receive(:zrevrange).with('FOO:baz', 0, -1).and_return(['item1', 'item2'])
-      @redis.should_receive(:zrevrange).with('BAR:baz', 0, -1).and_return(['item3', 'item4'])
+      @redis.should_receive(:zrevrange).with('flux:set:FOO:baz', 0, -1).and_return(['item1', 'item2'])
+      @redis.should_receive(:zrevrange).with('flux:set:BAR:baz', 0, -1).and_return(['item3', 'item4'])
       expected_output = ['item1:biz', 'item2:biz', 'item3:biz', 'item4:biz']
       @translator.resolve_keys(["[foo, bar].baz.biz"], 'mock.event.name', {'foo' => 'FOO', 'bar' => 'BAR'}).should == expected_output
     end
     it "resolves a combination of joins and literal sets correctly" do
-      @redis.should_receive(:zrevrange).with('mock.event.name:foo', 0, -1).and_return(['item1', 'item2'])
+      @redis.should_receive(:zrevrange).with('flux:set:mock.event.name:foo', 0, -1).and_return(['item1', 'item2'])
       expected_output = ['item1:bar:a:C', 'item1:bar:b:C', 'item2:bar:a:C', 'item2:bar:b:C']
       @translator.resolve_keys(["[@eventName].foo.bar", "['a','b']", "[c]"], "mock.event.name", {'c' => 'C'}).should == expected_output
     end
@@ -77,7 +77,7 @@ describe MQLTranslator do
         'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
       }
       translator = MQLTranslator.new(@redis, @counter, schema)
-      @redis.should_receive(:zadd).with('mydata', anything(), 'foobar')
+      @redis.should_receive(:zadd).with('flux:set:mydata', anything(), 'foobar')
       translator.process_event('myevent', {'id' => 'foobar'})
     end
     it "translates a remove event to a redis zrem" do
@@ -85,7 +85,7 @@ describe MQLTranslator do
         'myevent' => [{'targets' => ["['mydata']"], 'remove' => 'id'}]
       }
       translator = MQLTranslator.new(@redis, @counter, schema)
-      @redis.should_receive(:zrem).with('mydata', 'foobar')
+      @redis.should_receive(:zrem).with('flux:set:mydata', 'foobar')
       translator.process_event('myevent', {'id' => 'foobar'})
     end
     it "respects maxStoredValues directives by removing least recently added values from sets" do
@@ -107,9 +107,9 @@ describe MQLTranslator do
         'a.b.c.d.e' => [{'targets' => ["['counter:a:b:c:d:e']"], 'add' => 'id'}]
       }
       translator = MQLTranslator.new(@redis, @counter, schema)
-      @redis.should_receive(:zadd).with('counter:a', anything(), 'foobar')
-      @redis.should_receive(:zadd).with('counter:a:b', anything(), 'foobar')
-      @redis.should_receive(:zadd).with('counter:a:b:c', anything(), 'foobar')
+      @redis.should_receive(:zadd).with('flux:set:counter:a', anything(), 'foobar')
+      @redis.should_receive(:zadd).with('flux:set:counter:a:b', anything(), 'foobar')
+      @redis.should_receive(:zadd).with('flux:set:counter:a:b:c', anything(), 'foobar')
       translator.process_event('a.b.c.d', {'id' => 'foobar'})
     end
     it "triggers all handlers associated with a single key in sequence" do
@@ -119,10 +119,45 @@ describe MQLTranslator do
                 {'targets' => ["['counter:c']"], 'add' => 'id'}]
       }
       translator = MQLTranslator.new(@redis, @counter, schema)
-      @redis.should_receive(:zadd).with('counter:a', anything(), 'foobar').ordered
-      @redis.should_receive(:zadd).with('counter:b', anything(), 'foobar').ordered
-      @redis.should_receive(:zadd).with('counter:c', anything(), 'foobar').ordered
+      @redis.should_receive(:zadd).with('flux:set:counter:a', anything(), 'foobar').ordered
+      @redis.should_receive(:zadd).with('flux:set:counter:b', anything(), 'foobar').ordered
+      @redis.should_receive(:zadd).with('flux:set:counter:c', anything(), 'foobar').ordered
       translator.process_event('a.b', {'id' => 'foobar'})
+    end
+  end
+
+  describe "op_counter" do
+    before(:each) do
+      @redis = Object.new
+      @counter = Object.new
+      @schema = Object.new      
+    end
+    it "should return a sequence of distinct ascending ids when called repeatedly" do
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      ids = 1000.times.map { translator.op_counter }
+      ids.sort.should == ids
+      ids[0..-2].zip(ids[1..-1]).each { |x,y| x.should < y }
+    end
+    it "should generate ids that can be expressed in at most 52 bits" do
+      # These ids are used as scores in Redis sorted sets. Scores are stored
+      # as double-precision floating point numbers, which use only 52 bits for
+      # the significand. So, to make sure that we get the same integer out of
+      # Redis that we insert, we have to keep our ids expressable in <= 52 bits. 
+
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      1000.times.map { Math.log(translator.op_counter, 2) }.max.should <= 52
+    end
+    it "should allow you to generate unique ids based on a given time" do
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      first_counts = 10.times.map { translator.op_counter }
+      sleep 1
+      time = Time.now.to_f
+      sleep 1
+      last_counts = 10.times.map { translator.op_counter }
+      middle_counts = 100.times.map{ |x| translator.op_counter(time) }
+      ids = first_counts + middle_counts + last_counts
+      ids.sort.should == ids
+      ids[0..-2].zip(ids[1..-1]).each { |x,y| x.should < y }
     end
   end
 
