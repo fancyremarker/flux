@@ -77,6 +77,21 @@ describe 'Flux' do
     end
   end
 
+  describe "read-only mode" do
+    before do
+      ENV['READ_ONLY'] = "1"
+    end
+    after do
+      ENV['READ_ONLY'] = nil
+    end
+    it "rejects events if the READ_ONLY environment variable is set" do
+      get "/query/user1:followerIds?max_results=10"
+      last_response.status.should == 200
+      get "/event/client.gravity.actions.follow.user?followerId=user2&followedId=user1"
+      last_response.status.should == 501
+    end
+  end
+
   describe "following" do
     it "updates followerIds on the followed user" do
       get "/query/user1:followerIds?max_results=10"
