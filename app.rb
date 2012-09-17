@@ -13,9 +13,9 @@ translator = MQLTranslator.load(config)
 
 # Receive an event
 get '/event/:event' do
-  error 501 do 
-    "This Flux server is read-only"
-  end if ENV['READ_ONLY'] =~ /1|yes|true/
+  if ENV['READ_ONLY'] =~ /1|yes|true/
+    halt 501, { error: "This Flux server is read-only" }.to_json
+  end
   event_name = params.delete('event')
   Resque.enqueue(QueuedEvent, config, event_name, params)
 end
