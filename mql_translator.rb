@@ -1,7 +1,8 @@
-require 'redis'
+require 'cartesian-product'
 require 'hyperloglog-redis'
 require 'json'
 require 'logger'
+require 'redis'
 
 class MQLTranslator
 
@@ -34,7 +35,8 @@ class MQLTranslator
       next unless event_name.start_with?(event_filter)
       handlers.each do |handler|
         sorted_sets = resolve_keys(handler['targets'], event_name, args)
-        sorted_sets.each_with_index do |set_name, i|
+        sorted_sets.each_with_index do |set_name_components, i|
+          set_name = set_name_components.join(':')
           value_definition = handler['add'] || handler['remove']
           raise "Must specify either an add or remove handler" unless value_definition
           value = resolve_id(value_definition, event_name, args)
@@ -131,7 +133,7 @@ class MQLTranslator
       end
       entries
     end
-    multiplicands.first.product(*multiplicands[1..-1]).map{ |x| x.join(':') }
+    CartesianProduct.new(*multiplicands)
   end
 
 end

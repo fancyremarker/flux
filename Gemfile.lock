@@ -1,6 +1,7 @@
 GEM
   remote: http://rubygems.org/
   specs:
+    cartesian-product (0.1.0)
     daemons (1.1.9)
     diff-lcs (1.1.3)
     eventmachine (0.12.10)
@@ -52,6 +53,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  cartesian-product (~> 0.1.0)
   foreman (~> 0.55.0)
   hyperloglog-redis (~> 0.1.0)
   json (~> 1.7.4)
