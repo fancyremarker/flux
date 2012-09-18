@@ -35,33 +35,33 @@ describe MQLTranslator do
       @translator = MQLTranslator.new(@redis, @counter, {})
     end
     it "resolves a singleton id into itself" do
-      @translator.resolve_keys(["['foobar']"], 'mock.event.name', {'mock' => 'args'}).should == ['foobar']
+      @translator.resolve_keys(["['foobar']"], 'mock.event.name', {'mock' => 'args'}).map{ |x| x.join(':') }.should == ['foobar']
     end
     it "resolves a list of singleton ids into a single colon-delimited key" do
-      @translator.resolve_keys(["['foo']", "['bar']", "['baz']"], 'mock.event.name', {'mock' => 'args'}).should == ['foo:bar:baz']
+      @translator.resolve_keys(["['foo']", "['bar']", "['baz']"], 'mock.event.name', {'mock' => 'args'}).map{ |x| x.join(':') }.should == ['foo:bar:baz']
     end
     it "resolves a list of lists into their cartesian product" do
       input = ["['a','b']", "['c']", "['d','e','f']"]
       output = ['a:c:d', 'a:c:e', 'a:c:f', 'b:c:d', 'b:c:e', 'b:c:f']
-      @translator.resolve_keys(input, 'mock.event.name', {'mock' => 'args'}).should == output
+      @translator.resolve_keys(input, 'mock.event.name', {'mock' => 'args'}).map{ |x| x.join(':') }.should == output
     end
     it "translates identifiers that occur in targets correctly" do
       expected_output = ['foo:mock.event.name', 'bar:mock.event.name']
-      @translator.resolve_keys(["['foo', baz]", "[@eventName]"], 'mock.event.name', {'baz' => 'bar'}).should == expected_output
+      @translator.resolve_keys(["['foo', baz]", "[@eventName]"], 'mock.event.name', {'baz' => 'bar'}).map{ |x| x.join(':') }.should == expected_output
     end
     it "resolves a single join correctly" do
-      @translator.resolve_keys(["[foo].bar"], 'mock.event.name', {'foo' => 'FOO'}).should == ["FOO:bar"]
+      @translator.resolve_keys(["[foo].bar"], 'mock.event.name', {'foo' => 'FOO'}).map{ |x| x.join(':') }.should == ["FOO:bar"]
     end
     it "resolves a sequence of joins correctly" do
       @redis.should_receive(:zrevrange).with('flux:set:FOO:baz', 0, -1).and_return(['item1', 'item2'])
       @redis.should_receive(:zrevrange).with('flux:set:BAR:baz', 0, -1).and_return(['item3', 'item4'])
       expected_output = ['item1:biz', 'item2:biz', 'item3:biz', 'item4:biz']
-      @translator.resolve_keys(["[foo, bar].baz.biz"], 'mock.event.name', {'foo' => 'FOO', 'bar' => 'BAR'}).should == expected_output
+      @translator.resolve_keys(["[foo, bar].baz.biz"], 'mock.event.name', {'foo' => 'FOO', 'bar' => 'BAR'}).map{ |x| x.join(':') }.should == expected_output
     end
     it "resolves a combination of joins and literal sets correctly" do
       @redis.should_receive(:zrevrange).with('flux:set:mock.event.name:foo', 0, -1).and_return(['item1', 'item2'])
       expected_output = ['item1:bar:a:C', 'item1:bar:b:C', 'item2:bar:a:C', 'item2:bar:b:C']
-      @translator.resolve_keys(["[@eventName].foo.bar", "['a','b']", "[c]"], "mock.event.name", {'c' => 'C'}).should == expected_output
+      @translator.resolve_keys(["[@eventName].foo.bar", "['a','b']", "[c]"], "mock.event.name", {'c' => 'C'}).map{ |x| x.join(':') }.should == expected_output
     end
   end
 

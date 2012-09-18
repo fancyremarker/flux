@@ -1,5 +1,6 @@
 source "http://rubygems.org"
 
+gem 'cartesian-product', '~> 0.1.0'
 gem 'foreman', '~> 0.55.0'
 gem 'hyperloglog-redis', '~> 0.1.0'
 gem 'json', '~> 1.7.4'
