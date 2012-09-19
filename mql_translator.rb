@@ -61,7 +61,8 @@ class MQLTranslator
       if handler['add']
         if store_values
           @log.debug { "Appending '#{value}' to #{set_name}" }
-          @redis.zadd("flux:set:#{set_name}", op_counter(args['@time']), value)
+          timestamp = (Integer(args['@time']) rescue nil)
+          @redis.zadd("flux:set:#{set_name}", op_counter(timestamp), value)
         end
         if handler['maxStoredValues'] && store_values
           @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
