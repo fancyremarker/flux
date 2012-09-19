@@ -34,34 +34,49 @@ class MQLTranslator
     @schema.each_pair do |event_filter, handlers|
       next unless event_name.start_with?(event_filter)
       handlers.each do |handler|
-        sorted_sets = resolve_keys(handler['targets'], event_name, args)
-        sorted_sets.each_with_index do |set_name_components, i|
-          set_name = set_name_components.join(':')
-          value_definition = handler['add'] || handler['remove']
-          raise "Must specify either an add or remove handler" unless value_definition
-          value = resolve_id(value_definition, event_name, args)
-          store_values = handler['maxStoredValues'] != 0
-          if handler['add']
-            if store_values
-              @log.debug { "Appending '#{value}' to #{set_name}" }
-              @redis.zadd("flux:set:#{set_name}", op_counter(args['@time']), value)
-            end
-            if handler['maxStoredValues'] && store_values
-              @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
-              @redis.zremrangebyrank(set_name, 0, -1 - handler['maxStoredValues'])
-            end
-            @log.debug { "Incrementing distinct count for #{set_name}" }
-            @counter.add("flux:distinct:#{set_name}", value)
-            @log.debug { "Incrementing gross count for #{set_name}" }
-            @redis.incr("flux:gross:#{set_name}")
-          elsif handler['remove']
-            @log.debug { "Removing '#{value}' from #{set_name}" }
-            @redis.zrem("flux:set:#{set_name}", value)
-          end
-        end
+        execute_handler(handler, event_name, args)
       end
     end
-  end    
+
+    if args['@target']
+      # Explicitly enumerate accepted runtime args, to be safe
+      runtime_args = {
+        'targets'         => [args['@target']],
+        'add'             => args['@add'],
+        'remove'          => args['@remove'],
+        'maxStoredValues' => args['@maxStoredValues']
+      }
+      execute_handler(runtime_args, event_name, args)
+    end
+  end
+
+  def execute_handler(handler, event_name, args)
+    sorted_sets = resolve_keys(handler['targets'], event_name, args)
+    sorted_sets.each_with_index do |set_name_components, i|
+      set_name = set_name_components.join(':')
+      value_definition = handler['add'] || handler['remove']
+      raise "Must specify either an add or remove handler" unless value_definition
+      value = resolve_id(value_definition, event_name, args)
+      store_values = handler['maxStoredValues'] != 0
+      if handler['add']
+        if store_values
+          @log.debug { "Appending '#{value}' to #{set_name}" }
+          @redis.zadd("flux:set:#{set_name}", op_counter(args['@time']), value)
+        end
+        if handler['maxStoredValues'] && store_values
+          @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
+          @redis.zremrangebyrank(set_name, 0, -1 - handler['maxStoredValues'])
+        end
+        @log.debug { "Incrementing distinct count for #{set_name}" }
+        @counter.add("flux:distinct:#{set_name}", value)
+        @log.debug { "Incrementing gross count for #{set_name}" }
+        @redis.incr("flux:gross:#{set_name}")
+      elsif handler['remove']
+        @log.debug { "Removing '#{value}' from #{set_name}" }
+        @redis.zrem("flux:set:#{set_name}", value)
+      end
+    end
+  end
 
   def get_distinct_count(query)
     @counter.count("flux:distinct:#{query}")
@@ -94,18 +109,6 @@ class MQLTranslator
       case id[1..-1]
       when 'eventName'
         event_name
-      when 'day'
-        "123"
-      when 'week'
-        "20"
-      when 'month'
-        "5"
-      when 'requestIP'
-        '192.168.0.1'
-      when 'geoState'
-        'NY'
-      when 'geoCity'
-        'NY-NY'
       when 'uniqueId'
         op_counter.to_s
       else

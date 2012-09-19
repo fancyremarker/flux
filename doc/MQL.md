@@ -3,7 +3,7 @@ MaQuery Language
 
 MaQuery Language (MQL) describes the translation of an event into a series of 
 writes to a flat key space in real time. An _event_ is a namespace plus an 
-attribute hash, for example "client.gravity.actions.post" along with the hash 
+attribute hash, for example "client:gravity:action:post" along with the hash 
 `{ 'userId': 'user:1', 'postId': 'post:3' }`. An MQL schema is a JSON hash that 
 maps event prefixes to sequences of handlers. An event triggers all handlers 
 that are attached to prefixes of its namespace.
@@ -14,20 +14,20 @@ Intro to MQL
 Here's a sample MQL schema:
 
     {
-      "client.gravity.actions": [{ 
+      "client:gravity:action": [{ 
         "targets": ["['unique']", "[@eventName]", "[@day, @week, @month]"], 
         "add": "@requestIP" 
       }],
-      "client.gravity.actions.follow": [{ 
+      "client:gravity:action:follow": [{ 
         "targets": ["[followedId].followerIds"], 
         "add": "followerId" 
       }]
     }
 
-Given the event with namespace "client.gravity.actions.follow" and attributes 
+Given the event with namespace "client:gravity:action:follow" and attributes 
 `{'followedId': 'user:a', 'followerId': 'user:b'}`, both of the handlers in the 
-schema above are triggered, since both "client.gravity.actions.follow" and 
-"client.gravity.actions" are prefixes of the event namespace. When triggered, 
+schema above are triggered, since both "client:gravity:action:follow" and 
+"client:gravity:action" are prefixes of the event namespace. When triggered, 
 each handler expands its targets list into a list of key names, each of which 
 represent sets of values, and adds the value of the `add` parameters to 
 each of those sets.
@@ -64,14 +64,14 @@ strings in the set associated with the label L:Y. Note that for an expression X.
 to be valid, X must be a list, so a chain of ids joined by dots has to start off 
 with a literal list of ids. For example, 
 
-    targets: ["['a','b'].artwork_ids"]
+    targets: ["['a','b'].artworks"]
     add: "'artwork:123'"
 
-Adds the string 'artwork:123' to the sets a:artwork_ids and b:artwork_ids. If 
-we also stored artist ids in sets of the form 'artwork:123:artist_ids', we 
+Adds the string 'artwork:123' to the sets a:artworks and b:artworks. If 
+we also stored artist ids in sets of the form 'artwork:123:artists', we 
 could apply dot notation again to write artist ids:
 
-    targets: ["['a','b'].artworks_ids.artist_ids"]
+    targets: ["['a','b'].artworks.artists"]
     add: "'artist:345'"
 
 Logically, the "add" command adds the value to a set whose values are sorted
@@ -80,7 +80,7 @@ removes items from the set.
 
 You can bound the size of sets using the maxStoredValues field:
 
-    targets: ["['a','b'].artworks_ids.artist_ids"]
+    targets: ["['a','b'].artworks.artists"]
     add: "'artist:345'"
     maxStoredValues: 10
 

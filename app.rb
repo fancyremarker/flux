@@ -30,14 +30,14 @@ get '/query/:key' do
   translator.run_query(key, max_results, cursor).to_json
 end
 
-# Get a distinct count
-get '/distinct_add_count/:key' do
+# Get a distinct add count
+get '/distinct/:key' do
   content_type :json
   { 'count' => translator.get_distinct_count(params['key']) }.to_json
 end
 
-# Get a gross count
-get '/gross_add_count/:key' do
+# Get a gross add count
+get '/gross/:key' do
   content_type :json
   { 'count' => translator.get_gross_count(params['key']) }.to_json
 end

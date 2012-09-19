@@ -12,12 +12,12 @@ if you're having problems.
 Install Git
 -----------
 
-Install [GIT](http://git-scm.com/download).
+Install [Git](http://git-scm.com/download).
 
 Fork Flux
 ------------
 
-[Fork Flux](https://github.com/artsy/flux "Flux"). Then, pull the source and get started.
+Fork [Flux](https://github.com/artsy/flux "Flux"). Then, pull the source and get started.
 
     $ git clone git@github.com:<your-github-username>/flux.git
 
@@ -87,8 +87,8 @@ runs on localhost:5100.
 
 You can try out generating events and running queries via curl:
 
-    $ curl "http://localhost:5000/event/client.gravity.actions.follow.user?followerId=user2&followedId=user1"
-    $ curl "http://localhost:5000/event/client.gravity.actions.post?id=user1&postId=post1"
-    $ curl http://localhost:5000/query/user2:feedIds && echo
-    {"results":["post1"]}
+    $ curl "http://localhost:5000/event/client:gravity:action:follow:user?follower=user:2&followed=user:1"
+    $ curl "http://localhost:5000/event/client:gravity:action:post?user=user:1&post=post:1&@targets=[user].followers.feedItems&@add=post"
+    $ curl http://localhost:5000/query/user:2:feedItems && echo
+    {"results":["post:1"]}
     $

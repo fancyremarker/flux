@@ -1,48 +1,17 @@
 {
-  // User posting, need to write the post to all of the user's followers' feeds
-  // Ex: GET http://flux.art.sy/event/client.gravity.actions.post?id=user4ff34&postId=post500033 
-  // adds "post500033" to the X:feedIds set, for each X in the set user4ff34:followerIds
-  "client.gravity.actions.post": [{
-    "targets": ["[id].followerIds.feedIds"],
-    "add": "postId",
-    "maxStoredValues": 1000
-  }],
-
   // User following another user
-  // Ex: GET http://flux.art.sy/event/client.gravity.actions.follow.user?followerId=user4ff448&followedId=user50000d
-  // adds "user4ff448" to the set user50000d:followerIds
-  "client.gravity.actions.follow": [{
-    "targets": ["[followedId].followerIds"],
-    "add": "followerId"
+  // Ex: GET http://flux.art.sy/event/client:gravity:action:follow:user?follower=user:4ff448&followed=user:50000d
+  // adds "user:4ff448" to the set user:50000d:followers
+  "client:gravity:action:follow": [{
+    "targets": ["[followed].followers"],
+    "add": "follower"
   }],
 
   // User unfollowing another user
-  // Ex: GET http://flux.art.sy/event/client.gravity.actions.unfollow.user?followerId=user500001&followedId=user50000d
-  // removes "user500001" from the set user50000d:followerIds
-  "client.gravity.actions.unfollow": [{
-    "targets": ["[followedId].followerIds"],
-    "remove": "followerId"
-  }],
-
-  // Counting user actions
-  "client.gravity.actions": [{
-    "targets": ["[@eventName]", "[@day, @week, @month]"],
-    "add": "@requestIP",
-    "maxStoredValues": 0
-  },
-  {
-    "targets": ["[@eventName]", "[@day, @week, @month]", "[@geoState, @geoCity]"],
-    "add": "@requestIP",
-    "maxStoredValues": 0
-  }],
-
-  // Identify an admin with a user
-  // Ex: GET http://flux.art.sy/event/domain.identify.user?userId=user500002&adminId=user500003
-  // replaces the singleton set user500002:adminId with the contents "user500003"
-  "domain.identify.user": [{
-    "targets": ["[userId].adminId"],
-    "add": "adminId",
-    "maxStoredValues": 1
+  // Ex: GET http://flux.art.sy/event/client:gravity:action:unfollow:user?follower=user:500001&followed=user:50000d
+  // removes "user:500001" from the set user:50000d:followers
+  "client:gravity:action:unfollow": [{
+    "targets": ["[followed].followers"],
+    "remove": "follower"
   }]
-
 }
