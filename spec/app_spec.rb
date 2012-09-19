@@ -77,6 +77,18 @@ describe 'Flux' do
     end
   end
 
+  describe "up" do
+    it "returns 'redis': true if Redis is up" do
+      get "/up"
+      JSON.parse(last_response.body)['redis'].should == true
+    end
+    it "returns 'redis': false if Redis is down" do
+      MQLTranslator.any_instance.stub(:redis_up?) { false }
+      get "/up"
+      JSON.parse(last_response.body)['redis'].should == false
+    end
+  end
+
   describe "read-only mode" do
     before do
       ENV['READ_ONLY'] = "1"

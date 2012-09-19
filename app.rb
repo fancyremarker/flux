@@ -42,6 +42,11 @@ get '/gross/:key' do
   { 'count' => translator.get_gross_count(params['key']) }.to_json
 end
 
+get '/up' do
+  content_type :json
+  { 'redis' => translator.redis_up? }.to_json
+end
+
 if ENV['SYNC_URL']
   # Sync the app database with another redis database
   get '/sync' do
