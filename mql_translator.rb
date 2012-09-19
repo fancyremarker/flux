@@ -142,8 +142,7 @@ class MQLTranslator
 
   def redis_up?
     time = Time.now.to_i
-    @redis.set("flux:system:pingtime", time)
-    @redis.get("flux:system:pingtime") == time.to_s
+    @redis.set("flux:system:pingtime", time) == "OK"
   end
 
 end
