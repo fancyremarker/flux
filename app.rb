@@ -13,6 +13,7 @@ translator = MQLTranslator.load(config)
 
 # Receive an event
 get '/event/:event' do
+  content_type :json
   if ENV['READ_ONLY'] =~ /1|yes|true/
     halt 501, { error: "This Flux server is read-only" }.to_json
   end
@@ -52,4 +53,9 @@ if ENV['SYNC_URL']
   get '/sync' do
     Resque.enqueue(SyncDatabase, config, ENV['SYNC_URL'])
   end
+end
+
+not_found do
+  content_type :json
+  { 'error' => 'Not Found' }.to_json
 end
