@@ -124,6 +124,12 @@ describe MQLTranslator do
       @redis.should_receive(:zadd).with('flux:set:counter:c', anything(), 'foobar').ordered
       translator.process_event('a.b', {'id' => 'foobar'})
     end
+    it "accept a single handler specified in the event params" do
+      schema = {}
+      translator = MQLTranslator.new(@redis, @counter, schema)
+      @redis.should_receive(:zadd).with('flux:set:counter:a', anything(), 'foobar').ordered
+      translator.process_event('a.b', {'id' => 'foobar', '@target' => "['counter:a']", '@add' => 'id' })
+    end
   end
 
   describe "op_counter" do

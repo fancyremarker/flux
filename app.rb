@@ -13,6 +13,7 @@ translator = MQLTranslator.load(config)
 
 # Receive an event
 get '/event/:event' do
+  content_type :json
   if ENV['READ_ONLY'] =~ /1|yes|true/
     halt 501, { error: "This Flux server is read-only" }.to_json
   end
@@ -30,16 +31,21 @@ get '/query/:key' do
   translator.run_query(key, max_results, cursor).to_json
 end
 
-# Get a distinct count
-get '/distinct_add_count/:key' do
+# Get a distinct add count
+get '/distinct/:key' do
   content_type :json
   { 'count' => translator.get_distinct_count(params['key']) }.to_json
 end
 
-# Get a gross count
-get '/gross_add_count/:key' do
+# Get a gross add count
+get '/gross/:key' do
   content_type :json
   { 'count' => translator.get_gross_count(params['key']) }.to_json
+end
+
+get '/up' do
+  content_type :json
+  { 'redis' => translator.redis_up? }.to_json
 end
 
 if ENV['SYNC_URL']
@@ -47,4 +53,9 @@ if ENV['SYNC_URL']
   get '/sync' do
     Resque.enqueue(SyncDatabase, config, ENV['SYNC_URL'])
   end
+end
+
+not_found do
+  content_type :json
+  { 'error' => 'Not Found' }.to_json
 end
