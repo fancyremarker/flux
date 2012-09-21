@@ -34,9 +34,9 @@ on the machine where you're sending events, but passing a time override like thi
 playing queued events or replaying events and having them show up in queries from Flux in 
 roughly the same order as they occurred.
 
-The event API also allows setting MQL handlers at runtime. A single handler with exactly one target can be specified by passing `@target`, along with `@add` or `@remove`, and optionally `@maxStoredValues`. For example:
+The event API also allows setting MQL handlers at runtime. A single handler can be specified by passing `@targets[]`, along with `@add` or `@remove`, and optionally `@maxStoredValues`. For example:
 
-    http://flux.art.sy/event/client:gravity:action:post?user=user1&post=post1&@target=[user].followers.feedItems&@add=post
+    http://flux.art.sy/event/client:gravity:action:post?user=user1&post=post1&@targets[]=[user].followers.feedItems&@add=post
 
 Querying
 ========

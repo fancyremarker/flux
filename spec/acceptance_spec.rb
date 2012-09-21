@@ -61,14 +61,14 @@ describe 'Flux' do
       get "/event/client:gravity:action:follow:user?follower=user4&followed=user3"
     end
     it "updates the feed of all users following the poster" do
-      get "/event/client:gravity:action:post?user=user1&post=post1&@target=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user1&post=post1&@targets[]=[user].followers.feedItems&@add=post"
       ['user2', 'user3', 'user4'].each do |user|
         get "/query/#{user}:feedItems?maxResults=10"
         JSON.parse(last_response.body)['results'].should == ['post1']
       end
     end
     it "sends a sequence of posts to the correct subscribers" do
-      4.times { |i| get "/event/client:gravity:action:post?user=user#{i+1}&post=post#{i+1}&@target=[user].followers.feedItems&@add=post" }
+      4.times { |i| get "/event/client:gravity:action:post?user=user#{i+1}&post=post#{i+1}&@targets[]=[user].followers.feedItems&@add=post" }
       get "/query/user1:feedItems?maxResults=10"
       JSON.parse(last_response.body)['results'].sort.should == []
       get "/query/user2:feedItems?maxResults=10"
@@ -79,18 +79,18 @@ describe 'Flux' do
       JSON.parse(last_response.body)['results'].sort.should == ['post1', 'post2', 'post3']
     end
     it "returns most recently posted posts first" do
-      get "/event/client:gravity:action:post?user=user1&post=post1&@target=[user].followers.feedItems&@add=post"
-      get "/event/client:gravity:action:post?user=user2&post=post2&@target=[user].followers.feedItems&@add=post"
-      get "/event/client:gravity:action:post?user=user3&post=post3&@target=[user].followers.feedItems&@add=post"
-      get "/event/client:gravity:action:post?user=user1&post=post4&@target=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user1&post=post1&@targets[]=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user2&post=post2&@targets[]=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user3&post=post3&@targets[]=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user1&post=post4&@targets[]=[user].followers.feedItems&@add=post"
       get "/query/user4:feedItems?maxResults=10"
       JSON.parse(last_response.body)['results'].should == ['post4', 'post3', 'post2', 'post1']
     end
     it "allows you to override the relative order of posts by manually specifying a time" do
-      get "/event/client:gravity:action:post?user=user1&post=post1&@target=[user].followers.feedItems&@add=post"
-      get "/event/client:gravity:action:post?user=user2&post=post2&@target=[user].followers.feedItems&@add=post"
-      get "/event/client:gravity:action:post?user=user3&post=post3&@target=[user].followers.feedItems&@add=post"
-      get "/event/client:gravity:action:post?user=user1&post=post4&@time=0&@target=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user1&post=post1&@targets[]=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user2&post=post2&@targets[]=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user3&post=post3&@targets[]=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user1&post=post4&@time=0&@targets[]=[user].followers.feedItems&@add=post"
       get "/query/user4:feedItems?maxResults=10"
       JSON.parse(last_response.body)['results'].should == ['post3', 'post2', 'post1', 'post4']
     end

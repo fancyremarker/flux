@@ -38,10 +38,10 @@ class MQLTranslator
       end
     end
 
-    if args['@target']
+    if args['@targets']
       # Explicitly enumerate accepted runtime args, to be safe
       runtime_args = {
-        'targets'         => [args['@target']],
+        'targets'         => args['@targets'],
         'add'             => args['@add'],
         'remove'          => args['@remove'],
         'maxStoredValues' => (args['@maxStoredValues'].to_i if args['@maxStoredValues'])
