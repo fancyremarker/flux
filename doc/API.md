@@ -46,13 +46,13 @@ followers of user:50000d, execute a HTTP GET against
 
     http://flux.art.sy/query/user:50000d:followers
 
-You can add a `max_results` parameter to restrict the size of the result set. `max_results`
-defaults to 50 if it's omitted. If there are more than `max_results` results, you'll get
+You can add a `maxResults` parameter to restrict the size of the result set. `maxResults`
+defaults to 50 if it's omitted. If there are more than `maxResults` results, you'll get
 an opaque cursor back in the `next` field of the results. To continue paging through
 results, pass this cursor as the cursor parameter of the next call to same query. For
 example,
 
-    http://flux.art.sy/query/user:50000d:followers?max_results=1
+    http://flux.art.sy/query/user:50000d:followers?maxResults=1
 
 might return
 
@@ -60,7 +60,7 @@ might return
 
 You can then call
 
-    http://flux.art.sy/query/user:50000d:followers?max_results=10&cursor=1234
+    http://flux.art.sy/query/user:50000d:followers?maxResults=10&cursor=1234
 
 To get the following 10 results. When there are no more results, you won't get a next
 field in the result.

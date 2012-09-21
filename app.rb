@@ -25,7 +25,7 @@ end
 get '/query/:key' do
   content_type :json
   key = params['key']
-  max_results = params['max_results'].to_i
+  max_results = params['maxResults'].to_i
   max_results = 50 if max_results < 1 or max_results > 50
   cursor = params['cursor']
   translator.run_query(key, max_results, cursor).to_json

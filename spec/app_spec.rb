@@ -16,20 +16,20 @@ describe 'Flux' do
       100.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" }
     end
     it "returns a cursor as part of the result set if results aren't exhausted" do
-      get "/query/user0:followers?max_results=10"
+      get "/query/user0:followers?maxResults=10"
       JSON.parse(last_response.body)['next'].should_not be_nil
     end
     it "allows paging through results by passing the cursor back in" do
       accumulated_results = []
       result_set_size = 1
 
-      get "/query/user0:followers?max_results=#{result_set_size}"
+      get "/query/user0:followers?maxResults=#{result_set_size}"
       result = JSON.parse(last_response.body)
       next_cursor = result['next']
       accumulated_results += result['results']
 
       while result['next'] do
-        get "/query/user0:followers?max_results=#{result_set_size}&cursor=#{next_cursor}"
+        get "/query/user0:followers?maxResults=#{result_set_size}&cursor=#{next_cursor}"
         result = JSON.parse(last_response.body)
         accumulated_results += result['results']
         next_cursor = result['next']
@@ -38,14 +38,14 @@ describe 'Flux' do
 
       accumulated_results.should == 100.times.map{ |i| "user#{100-i}" }
     end
-    it "returns at most 50 results if you don't pass a max_results parameter" do
+    it "returns at most 50 results if you don't pass a maxResults parameter" do
       get "/query/user0:followers"
       response_json = JSON.parse(last_response.body)
       response_json['next'].should_not be_nil
       response_json['results'].length.should == 50
     end
     it "returns at most 50 results if you ask for too many results" do
-      get "/query/user0:followers?max_results=100"
+      get "/query/user0:followers?maxResults=100"
       response_json = JSON.parse(last_response.body)
       response_json['next'].should_not be_nil
       response_json['results'].length.should == 50
@@ -97,7 +97,7 @@ describe 'Flux' do
       ENV['READ_ONLY'] = nil
     end
     it "rejects events if the READ_ONLY environment variable is set" do
-      get "/query/user1:followers?max_results=10"
+      get "/query/user1:followers?maxResults=10"
       last_response.status.should == 200
       get "/event/client:gravity:action:follow:user?follower=user2&followed=user1"
       last_response.status.should == 501

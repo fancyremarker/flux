@@ -44,7 +44,7 @@ class MQLTranslator
         'targets'         => [args['@target']],
         'add'             => args['@add'],
         'remove'          => args['@remove'],
-        'maxStoredValues' => args['@maxStoredValues']
+        'maxStoredValues' => args['@maxStoredValues'].to_i
       }
       execute_handler(runtime_args, event_name, args)
     end
