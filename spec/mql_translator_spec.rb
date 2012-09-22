@@ -128,7 +128,7 @@ describe MQLTranslator do
       schema = {}
       translator = MQLTranslator.new(@redis, @counter, schema)
       @redis.should_receive(:zadd).with('flux:set:counter:a', anything(), 'foobar').ordered
-      translator.process_event('a.b', {'id' => 'foobar', '@target' => "['counter:a']", '@add' => 'id' })
+      translator.process_event('a.b', {'id' => 'foobar', '@targets' => ["['counter:a']"], '@add' => 'id' })
     end
   end
 
