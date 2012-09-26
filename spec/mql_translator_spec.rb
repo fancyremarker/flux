@@ -153,17 +153,50 @@ describe MQLTranslator do
       translator = MQLTranslator.new(@redis, @counter, @schema)
       1000.times.map { Math.log(translator.op_counter, 2) }.max.should <= 52
     end
-    it "should allow you to generate unique ids based on a given time" do
+    it "should allow you to generate unique ids based on a specified score" do
       translator = MQLTranslator.new(@redis, @counter, @schema)
       first_counts = 10.times.map { translator.op_counter }
       sleep 1
-      time = Time.now.to_f
+      score = Time.now.to_i
       sleep 1
       last_counts = 10.times.map { translator.op_counter }
-      middle_counts = 100.times.map{ |x| translator.op_counter(time) }
+      middle_counts = 100.times.map{ |x| translator.op_counter(score, 'id') }
       ids = first_counts + middle_counts + last_counts
       ids.sort.should == ids
-      ids[0..-2].zip(ids[1..-1]).each { |x,y| x.should < y }
+      ids[0..-2].zip(ids[1..-1]).each { |x,y| x.should <= y }
+    end
+    it "should generate unique ids for different values with the same score" do
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      score = Time.now.to_i
+      id1a_counter = translator.op_counter(score, 'id1')
+      id1b_counter = translator.op_counter(score, 'id1')
+      id2_counter = translator.op_counter(score, 'id2')
+      id1a_counter.should == id1b_counter
+      id1a_counter.should_not == id2_counter
+    end
+    it "should store the score (or seconds and milliseconds) in bit-aligned compartments" do
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      time = Time.now
+      Time.stub(:now) { time }
+      seconds = time.to_i
+      milliseconds = (time.to_f * 1000).to_i % 1000
+      explicit_counter = translator.op_counter(seconds, 'id')
+      implicit_counter = translator.op_counter
+      (explicit_counter >> 20).should == seconds
+      (implicit_counter >> 20).should == seconds
+      ((implicit_counter >> 10) % 1024).should == milliseconds
+    end
+    it "should reject negative or out-of-range scores (but accept zero scores)" do
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      time = Time.now
+      Time.stub(:now) { time }
+      implicit_counter = translator.op_counter
+      counter1 = translator.op_counter(0, 'id')
+      counter2 = translator.op_counter(-1, 'id')
+      counter3 = translator.op_counter(2**32, 'id')
+      (counter1 >> 10).should_not == (implicit_counter >> 10)
+      (counter2  >> 10).should == (implicit_counter >> 10)
+      (counter3  >> 10).should == (implicit_counter >> 10)
     end
   end
 

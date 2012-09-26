@@ -3,6 +3,7 @@ require 'hyperloglog-redis'
 require 'json'
 require 'logger'
 require 'redis'
+require 'murmurhash3'
 
 class MQLTranslator
 
@@ -61,8 +62,8 @@ class MQLTranslator
       if handler['add']
         if store_values
           @log.debug { "Appending '#{value}' to #{set_name}" }
-          timestamp = (Integer(args['@time']) rescue nil)
-          @redis.zadd("flux:set:#{set_name}", op_counter(timestamp), value)
+          timestamp = (Integer(args['@score']) rescue nil)
+          @redis.zadd("flux:set:#{set_name}", op_counter(timestamp, value), value)
         end
         if handler['maxStoredValues'] && store_values
           @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
@@ -79,25 +80,37 @@ class MQLTranslator
     end
   end
 
-  def get_distinct_count(query)
-    @counter.count("flux:distinct:#{query}")
+  def get_distinct_count(keys)
+    keys.inject(0) { |sum, key| sum + @counter.count("flux:distinct:#{key}") }
   end
 
-  def get_gross_count(query)
-    @redis.get("flux:gross:#{query}").to_i
+  def get_gross_count(keys)
+    keys.inject(0) { |sum, key| sum + @redis.get("flux:gross:#{key}").to_i }
   end
 
-  def op_counter(seconds_since_the_epoch = nil)
-    seconds_since_the_epoch ||= Time.now.to_f
-    @op_counter_lower_bits = (@op_counter_lower_bits + 1) % 1024
-    ((seconds_since_the_epoch * 1000).to_i << 10) + @op_counter_lower_bits
+  def op_counter(score = nil, value = nil)
+    if score && score.to_i >= 0 && score.to_i < 2147483648 # 2**31
+      # Client has provided their own score; use it. Append a hash of the
+      # value to break ties.
+      value_bits = MurmurHash3::V32.murmur3_32_str_hash(value) % 1048576
+      (score.to_i << 20) + value_bits
+    else
+      # Client did not provide a score, generate one from the current time,
+      # to the millisecond, plus the value of a rotating 10-bit counter.
+      seconds_since_the_epoch = Time.now.to_f
+      milliseconds_part = (seconds_since_the_epoch * 1000).to_i % 1000
+      @op_counter_lower_bits = (@op_counter_lower_bits + 1) % 1024
+      (seconds_since_the_epoch.to_i << 20) + (milliseconds_part << 10) + @op_counter_lower_bits
+    end
   end
 
-  def run_query(query, max_results, start)
+  def run_query(keys, max_results, start)
     start ||= "inf"
-    raw_results = @redis.zrevrangebyscore("flux:set:#{query}", "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})    
-    results = raw_results.map{ |result| result.first }
-    if results.length < max_results
+    all_results = keys.map { |key| @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", { withscores: true, limit: [0, max_results] }).reverse }
+    raw_results = max_results.times.map { (all_results.max_by { |results| (results.last || [nil,-1]).last } || []).pop }.compact
+
+    results = raw_results.map { |result| result.first }.uniq
+    if raw_results.length < max_results
       { 'results' => results }
     else
       { 'results' => results, 'next' => raw_results.last.last }

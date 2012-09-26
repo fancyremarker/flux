@@ -22,25 +22,25 @@ get '/event/:event' do
 end
 
 # Run a query
-get '/query/:key' do
+get '/query' do
   content_type :json
-  key = params['key']
+  keys = params['keys'] || []
   max_results = params['maxResults'].to_i
   max_results = 50 if max_results < 1 or max_results > 50
   cursor = params['cursor']
-  translator.run_query(key, max_results, cursor).to_json
+  translator.run_query(keys, max_results, cursor).to_json
 end
 
 # Get a distinct add count
-get '/distinct/:key' do
+get '/distinct' do
   content_type :json
-  { 'count' => translator.get_distinct_count(params['key']) }.to_json
+  { 'count' => translator.get_distinct_count(params['keys']) }.to_json
 end
 
 # Get a gross add count
-get '/gross/:key' do
+get '/gross' do
   content_type :json
-  { 'count' => translator.get_gross_count(params['key']) }.to_json
+  { 'count' => translator.get_gross_count(params['keys']) }.to_json
 end
 
 get '/up' do
