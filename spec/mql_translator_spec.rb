@@ -186,6 +186,16 @@ describe MQLTranslator do
       (implicit_counter >> 20).should == seconds
       ((implicit_counter >> 10) % 1024).should == milliseconds
     end
+    it "should reject zero or negative scores" do
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      time = Time.now
+      Time.stub(:now) { time }
+      implicit_counter = translator.op_counter
+      counter1 = translator.op_counter(0, 'id')
+      counter2 = translator.op_counter(-1, 'id')
+      (counter1 >> 10).should == (implicit_counter >> 10)
+      (counter2  >> 10).should == (implicit_counter >> 10)
+    end
   end
 
 end

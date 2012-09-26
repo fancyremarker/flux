@@ -89,7 +89,7 @@ class MQLTranslator
   end
 
   def op_counter(score = nil, value = nil)
-    if score
+    if score && score.to_i > 0
       # Client has provided their own score; use it. Append a hash of the
       # value to break ties.
       value_bits = MurmurHash3::V32.murmur3_32_str_hash(value) % 1048576
