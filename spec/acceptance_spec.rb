@@ -19,6 +19,13 @@ describe 'Flux' do
       get "/query?keys[]=user1:followers&maxResults=10"
       JSON.parse(last_response.body)['results'].should == ['user2']
     end
+    it "updates sources on the following user" do
+      get "/query?keys[]=user1:followers&maxResults=10"
+      JSON.parse(last_response.body).should == { 'results' => [] }
+      get "/event/client:gravity:action:follow:user?follower=user2&followed=user1"
+      get "/query?keys[]=user2:sources&maxResults=10"
+      JSON.parse(last_response.body)['results'].should == ['user1']
+    end
     it "doesn't add duplicates to the followed list even if the event fires multiple times" do
       get "/query?keys[]=user1:followers&maxResults=10"
       JSON.parse(last_response.body)['results'].should == []
@@ -42,6 +49,11 @@ describe 'Flux' do
       get "/event/client:gravity:action:unfollow:user?follower=user3&followed=user1"
       get "/query?keys[]=user1:followers&maxResults=10"
       JSON.parse(last_response.body)['results'].sort.should == ['user2']
+    end
+    it "updates sources on the following user" do
+      get "/event/client:gravity:action:unfollow:user?follower=user3&followed=user1"
+      get "/query?keys[]=user3:sources&maxResults=10"
+      JSON.parse(last_response.body)['results'].sort.should == []
     end
     it "is a no-op if the user isn't following the user they're trying to unfollow in the first place" do
       get "/event/client:gravity:action:unfollow:user?follower=user4&followed=user1"
