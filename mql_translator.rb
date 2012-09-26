@@ -95,14 +95,38 @@ class MQLTranslator
     ((seconds_since_the_epoch * 1000).to_i << 10) + @op_counter_lower_bits
   end
 
+  def op_counter_to_timestamp(counter)
+    counter.to_i / 1024
+  end
+
   def run_query(keys, max_results, start)
     start ||= "inf"
-    keys = keys.to_a
-    union_results = keys.inject([]) do |arr, key|
-       arr += @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})
+    results_by_key = {}
+    cursors_by_key = {}
+    keys.to_a.each do |key|
+      results_by_key[key] = @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})
+      cursors_by_key[key] = 0
+      keys.delete(key) if results_by_key[key].empty?
     end
-    raw_results = union_results.sort { |x, y| y[1] <=> x[1] }.take(max_results)
-    results = raw_results.map{ |result| result.first }
+
+    raw_results = []
+    while raw_results.count < max_results && !keys.empty?
+      argmax = keys.first
+      argmax = keys.inject do |argmax, key|
+        results_by_key[key][cursors_by_key[key]].last > results_by_key[argmax][cursors_by_key[argmax]].last ? key : argmax
+      end
+      candidate = results_by_key[argmax][cursors_by_key[argmax]]
+      timestamp = op_counter_to_timestamp(candidate.last)
+      unless raw_results.last &&
+             raw_results.last.first == candidate.first &&
+             op_counter_to_timestamp(raw_results.last.last) == timestamp
+        raw_results << candidate
+      end
+      cursors_by_key[argmax] += 1
+      keys.delete(argmax) unless results_by_key[argmax][cursors_by_key[argmax]]
+    end
+
+    results = raw_results.map { |result| result.first }
     if results.length < max_results
       { 'results' => results }
     else

@@ -38,6 +38,33 @@ describe 'Flux' do
 
       accumulated_results.should == 100.times.map{ |i| "user#{100-i}" }
     end
+    it "properly returns and pages the union of multiple sets" do
+      accumulated_results = []
+      result_set_size = 1
+
+      5.times do |i|
+        get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{3*i+1}&@time=#{3*i+1}"
+        get "/event/client:gravity:action:follow:user?followed=user2&follower=user#{3*i+2}&@time=#{3*i+2}"
+        get "/event/client:gravity:action:follow:user?followed=user3&follower=user#{3*i+3}&@time=#{3*i+3}"
+        get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{3*i+3}&@time=#{3*i+3}"
+      end
+
+      get "/query?keys[]=user1:followers&keys[]=user2:followers&keys[]=user3:followers&maxResults=#{result_set_size}"
+      result = JSON.parse(last_response.body)
+      next_cursor = result['next']
+      accumulated_results += result['results']
+
+      while result['next'] do
+        get "/query?keys[]=user1:followers&keys[]=user2:followers&keys[]=user3:followers&maxResults=#{result_set_size}&cursor=#{next_cursor}"
+        result = JSON.parse(last_response.body)
+        accumulated_results += result['results']
+        next_cursor = result['next']
+        result_set_size += 1
+      end
+
+      accumulated_results.should == 15.times.map{ |i| "user#{15-i}" }
+    end
+
     it "returns at most 50 results if you don't pass a maxResults parameter" do
       get "/query?keys[]=user0:followers"
       response_json = JSON.parse(last_response.body)
@@ -62,6 +89,12 @@ describe 'Flux' do
       get "/distinct?keys[]=badUser:followers"
       JSON.parse(last_response.body)['count'].should == 0
     end
+    pending "returns a correct union count for sets" do
+      10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" } }
+      10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{i+31}" } }
+      get "/distinct?keys[]=user0:followers&keys[]=user1:followers"
+      (JSON.parse(last_response.body)['count'] - 80).abs.should < 10
+    end
   end
 
   describe "gross counts" do
@@ -74,6 +107,14 @@ describe 'Flux' do
     it "returns 0 if the set doesn't exist" do
       get "/gross?keys[]=badUser:followers"
       JSON.parse(last_response.body)['count'].should == 0
+    end
+    it "returns a correct union count for sets" do
+      17.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" }
+      17.times { |i| get "/event/client:gravity:action:unfollow:user?followed=user0&follower=user#{i+1}" }
+      17.times { |i| get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{i+1}" }
+      17.times { |i| get "/event/client:gravity:action:unfollow:user?followed=user1&follower=user#{i+1}" }
+      get "/gross?keys[]=user0:followers&keys[]=user1:followers"
+      JSON.parse(last_response.body)['count'].should == 34
     end
   end
 
