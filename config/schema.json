@@ -5,6 +5,9 @@
   "client:gravity:action:follow": [{
     "targets": ["[followed].followers"],
     "add": "follower"
+  }, {
+    "targets": ["[follower].sources"],
+    "add": "followed"
   }],
 
   // User unfollowing another user
@@ -13,5 +16,8 @@
   "client:gravity:action:unfollow": [{
     "targets": ["[followed].followers"],
     "remove": "follower"
+  }, {
+    "targets": ["[follower].sources"],
+    "remove": "followed"
   }]
 }
