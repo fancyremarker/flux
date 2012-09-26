@@ -79,12 +79,14 @@ class MQLTranslator
     end
   end
 
-  def get_distinct_count(query)
-    @counter.count("flux:distinct:#{query}")
+  def get_distinct_count(keys)
+    keys = keys.to_a
+    keys.inject(0) { |sum, key| sum + @counter.count("flux:distinct:#{key}") }
   end
 
-  def get_gross_count(query)
-    @redis.get("flux:gross:#{query}").to_i
+  def get_gross_count(keys)
+    keys = keys.to_a
+    keys.inject(0) { |sum, key| sum + @redis.get("flux:gross:#{key}").to_i }
   end
 
   def op_counter(seconds_since_the_epoch = nil)
@@ -93,9 +95,13 @@ class MQLTranslator
     ((seconds_since_the_epoch * 1000).to_i << 10) + @op_counter_lower_bits
   end
 
-  def run_query(query, max_results, start)
+  def run_query(keys, max_results, start)
     start ||= "inf"
-    raw_results = @redis.zrevrangebyscore("flux:set:#{query}", "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})    
+    keys = keys.to_a
+    union_results = keys.inject([]) do |arr, key|
+       arr += @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})
+    end
+    raw_results = union_results.sort { |x, y| y[1] <=> x[1] }.take(max_results)
     results = raw_results.map{ |result| result.first }
     if results.length < max_results
       { 'results' => results }
