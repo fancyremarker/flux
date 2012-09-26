@@ -165,6 +165,27 @@ describe MQLTranslator do
       ids.sort.should == ids
       ids[0..-2].zip(ids[1..-1]).each { |x,y| x.should <= y }
     end
+    it "should generate unique ids for different values with the same score" do
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      score = Time.now.to_i
+      id1a_counter = translator.op_counter(score, 'id1')
+      id1b_counter = translator.op_counter(score, 'id1')
+      id2_counter = translator.op_counter(score, 'id2')
+      id1a_counter.should == id1b_counter
+      id1a_counter.should_not == id2_counter
+    end
+    it "should store the score (or seconds and milliseconds) in bit-aligned compartments" do
+      translator = MQLTranslator.new(@redis, @counter, @schema)
+      time = Time.now
+      Time.stub(:now) { time }
+      seconds = time.to_i
+      milliseconds = (time.to_f * 1000).to_i % 1000
+      explicit_counter = translator.op_counter(seconds, 'id')
+      implicit_counter = translator.op_counter
+      (explicit_counter >> 20).should == seconds
+      (implicit_counter >> 20).should == seconds
+      ((implicit_counter >> 10) % 1024).should == milliseconds
+    end
   end
 
 end

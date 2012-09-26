@@ -3,6 +3,7 @@ require 'hyperloglog-redis'
 require 'json'
 require 'logger'
 require 'redis'
+require 'murmurhash3'
 
 class MQLTranslator
 
