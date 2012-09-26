@@ -106,31 +106,11 @@ class MQLTranslator
 
   def run_query(keys, max_results, start)
     start ||= "inf"
-    results_by_key = {}
-    cursors_by_key = {}
-    keys.each do |key|
-      results_by_key[key] = @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})
-      cursors_by_key[key] = 0
-      keys.delete(key) if results_by_key[key].empty?
-    end
+    all_results = keys.map { |key| @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", { withscores: true, limit: [0, max_results] }).reverse }
+    raw_results = max_results.times.map { (all_results.max_by { |results| (results.last || [nil,0]).last } || []).pop }.compact
 
-    raw_results = []
-    while raw_results.count < max_results && !keys.empty?
-      argmax = keys.first
-      argmax = keys.inject do |argmax, key|
-        results_by_key[key][cursors_by_key[key]].last > results_by_key[argmax][cursors_by_key[argmax]].last ? key : argmax
-      end
-      candidate = results_by_key[argmax][cursors_by_key[argmax]]
-      unless raw_results.last &&
-             raw_results.last.first == candidate.first
-        raw_results << candidate
-      end
-      cursors_by_key[argmax] += 1
-      keys.delete(argmax) unless results_by_key[argmax][cursors_by_key[argmax]]
-    end
-
-    results = raw_results.map { |result| result.first }
-    if results.length < max_results
+    results = raw_results.map { |result| result.first }.uniq
+    if raw_results.length < max_results
       { 'results' => results }
     else
       { 'results' => results, 'next' => raw_results.last.last }
