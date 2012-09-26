@@ -34,6 +34,8 @@ on the machine where you're sending events, but passing a time override like thi
 playing queued events or replaying events and having them show up in queries from Flux in 
 roughly the same order as they occurred.
 
+Note that the argument to `@score` can be completely arbitrary; if the set to which you are sending events or storing values should be ordered by some parameter other than time (e.g., a game leaderboard), `@score` accepts *any* positive integer argument.
+
 The event API also allows setting MQL handlers at runtime. A single handler can be specified by passing `@targets[]`, along with `@add` or `@remove`, and optionally `@maxStoredValues`. For example:
 
     http://flux.art.sy/event/client:gravity:action:post?user=user1&post=post1&@targets[]=[user].followers.feedItems&@add=post
