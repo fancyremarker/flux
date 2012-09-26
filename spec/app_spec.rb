@@ -43,10 +43,10 @@ describe 'Flux' do
       result_set_size = 1
 
       5.times do |i|
-        get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{3*i+1}&@time=#{3*i+1}"
-        get "/event/client:gravity:action:follow:user?followed=user2&follower=user#{3*i+2}&@time=#{3*i+2}"
-        get "/event/client:gravity:action:follow:user?followed=user3&follower=user#{3*i+3}&@time=#{3*i+3}"
-        get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{3*i+3}&@time=#{3*i+3}"
+        get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{3*i+1}&@score=#{3*i+1}"
+        get "/event/client:gravity:action:follow:user?followed=user2&follower=user#{3*i+2}&@score=#{3*i+2}"
+        get "/event/client:gravity:action:follow:user?followed=user3&follower=user#{3*i+3}&@score=#{3*i+3}"
+        get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{3*i+3}&@score=#{3*i+3}"
       end
 
       get "/query?keys[]=user1:followers&keys[]=user2:followers&keys[]=user3:followers&maxResults=#{result_set_size}"

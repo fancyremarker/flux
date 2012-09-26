@@ -153,17 +153,17 @@ describe MQLTranslator do
       translator = MQLTranslator.new(@redis, @counter, @schema)
       1000.times.map { Math.log(translator.op_counter, 2) }.max.should <= 52
     end
-    it "should allow you to generate unique ids based on a given time" do
+    it "should allow you to generate unique ids based on a specified score" do
       translator = MQLTranslator.new(@redis, @counter, @schema)
       first_counts = 10.times.map { translator.op_counter }
       sleep 1
-      time = Time.now.to_f
+      score = Time.now.to_i
       sleep 1
       last_counts = 10.times.map { translator.op_counter }
-      middle_counts = 100.times.map{ |x| translator.op_counter(time) }
+      middle_counts = 100.times.map{ |x| translator.op_counter(score, 'id') }
       ids = first_counts + middle_counts + last_counts
       ids.sort.should == ids
-      ids[0..-2].zip(ids[1..-1]).each { |x,y| x.should < y }
+      ids[0..-2].zip(ids[1..-1]).each { |x,y| x.should <= y }
     end
   end
 

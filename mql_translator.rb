@@ -61,8 +61,8 @@ class MQLTranslator
       if handler['add']
         if store_values
           @log.debug { "Appending '#{value}' to #{set_name}" }
-          timestamp = (Integer(args['@time']) rescue nil)
-          @redis.zadd("flux:set:#{set_name}", op_counter(timestamp), value)
+          timestamp = (Integer(args['@score']) rescue nil)
+          @redis.zadd("flux:set:#{set_name}", op_counter(timestamp, value), value)
         end
         if handler['maxStoredValues'] && store_values
           @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
@@ -80,30 +80,34 @@ class MQLTranslator
   end
 
   def get_distinct_count(keys)
-    keys = keys.to_a
     keys.inject(0) { |sum, key| sum + @counter.count("flux:distinct:#{key}") }
   end
 
   def get_gross_count(keys)
-    keys = keys.to_a
     keys.inject(0) { |sum, key| sum + @redis.get("flux:gross:#{key}").to_i }
   end
 
-  def op_counter(seconds_since_the_epoch = nil)
-    seconds_since_the_epoch ||= Time.now.to_f
-    @op_counter_lower_bits = (@op_counter_lower_bits + 1) % 1024
-    ((seconds_since_the_epoch * 1000).to_i << 10) + @op_counter_lower_bits
-  end
-
-  def op_counter_to_timestamp(counter)
-    counter.to_i / 1024
+  def op_counter(score = nil, value = nil)
+    if score
+      # Client has provided their own score; use it. Append a hash of the
+      # value to break ties.
+      value_bits = MurmurHash3::V32.murmur3_32_str_hash(value) % 1048576
+      (score.to_i << 20) + value_bits
+    else
+      # Client did not provide a score, generate one from the current time,
+      # to the millisecond, plus the value of a rotating 10-bit counter.
+      seconds_since_the_epoch = Time.now.to_f
+      milliseconds_part = (seconds_since_the_epoch * 1000).to_i % 1000
+      @op_counter_lower_bits = (@op_counter_lower_bits + 1) % 1024
+      (seconds_since_the_epoch.to_i << 20) + (milliseconds_part << 10) + @op_counter_lower_bits
+    end
   end
 
   def run_query(keys, max_results, start)
     start ||= "inf"
     results_by_key = {}
     cursors_by_key = {}
-    keys.to_a.each do |key|
+    keys.each do |key|
       results_by_key[key] = @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", {withscores: true, limit: [0, max_results]})
       cursors_by_key[key] = 0
       keys.delete(key) if results_by_key[key].empty?
@@ -116,10 +120,8 @@ class MQLTranslator
         results_by_key[key][cursors_by_key[key]].last > results_by_key[argmax][cursors_by_key[argmax]].last ? key : argmax
       end
       candidate = results_by_key[argmax][cursors_by_key[argmax]]
-      timestamp = op_counter_to_timestamp(candidate.last)
       unless raw_results.last &&
-             raw_results.last.first == candidate.first &&
-             op_counter_to_timestamp(raw_results.last.last) == timestamp
+             raw_results.last.first == candidate.first
         raw_results << candidate
       end
       cursors_by_key[argmax] += 1
