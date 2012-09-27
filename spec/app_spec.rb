@@ -77,6 +77,14 @@ describe 'Flux' do
       response_json['next'].should_not be_nil
       response_json['results'].length.should == 50
     end
+    it "accepts a maxScore argument to restrict results" do
+      get "/event/client:gravity:action:follow:user?followed=user1&follower=user2&@score=9"
+      get "/event/client:gravity:action:follow:user?followed=user1&follower=user3&@score=10"
+      get "/event/client:gravity:action:follow:user?followed=user1&follower=user4&@score=11"
+      get "/query?keys[]=user1:followers&maxScore=10"
+      response_json = JSON.parse(last_response.body)
+      response_json['results'].should == ['user3', 'user2']
+    end
   end
 
   describe "distinct counts" do

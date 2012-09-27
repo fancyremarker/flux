@@ -28,7 +28,8 @@ get '/query' do
   max_results = params['maxResults'].to_i
   max_results = 50 if max_results < 1 or max_results > 50
   cursor = params['cursor']
-  translator.run_query(keys, max_results, cursor).to_json
+  max_score = params['maxScore']
+  translator.run_query(keys, max_results, cursor, max_score).to_json
 end
 
 # Get a distinct add count
