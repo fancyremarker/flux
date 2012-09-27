@@ -92,7 +92,7 @@ class MQLTranslator
     if score && score.to_i >= 0 && score.to_i < 2147483648 # 2**31
       # Client has provided their own score; use it. Append a hash of the
       # value to break ties.
-      value_bits = MurmurHash3::V32.murmur3_32_str_hash(value) % 1048576
+      value_bits = value ? MurmurHash3::V32.murmur3_32_str_hash(value) % 1048576 : 0
       (score.to_i << 20) + value_bits
     else
       # Client did not provide a score, generate one from the current time,
@@ -104,8 +104,16 @@ class MQLTranslator
     end
   end
 
-  def run_query(keys, max_results, start)
-    start ||= "inf"
+  def run_query(keys, max_results, cursor, max_score = nil)
+    if max_score && !max_score.empty?
+      start = op_counter(max_score.to_i + 1)
+      start = [ start, cursor.to_i ].min if cursor && !cursor.empty?
+    elsif cursor && !cursor.empty?
+      start = cursor
+    else
+      start = "inf"
+    end
+
     all_results = keys.map { |key| @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", { withscores: true, limit: [0, max_results] }).reverse }
     raw_results = max_results.times.map { (all_results.max_by { |results| (results.last || [nil,-1]).last } || []).pop }.compact
 
