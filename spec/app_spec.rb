@@ -91,7 +91,7 @@ describe 'Flux' do
     it "returns a decent correct distinct add event count for a set" do
       10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" } }
       get "/distinct?keys[]=user0:followers"
-      (JSON.parse(last_response.body)['count'] - 50).abs.should < 10
+      JSON.parse(last_response.body)['count'].should be_within(10).of(50)
     end
     it "returns 0 if the set doesn't exist" do
       get "/distinct?keys[]=badUser:followers"
@@ -101,13 +101,13 @@ describe 'Flux' do
       10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" } }
       10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{i+31}" } }
       get "/distinct?keys[]=user0:followers&keys[]=user1:followers&op=union"
-      (JSON.parse(last_response.body)['count'] - 80).abs.should < 10
+      JSON.parse(last_response.body)['count'].should be_within(10).of(80)
     end
     it "returns a correct intersection count for sets" do
       10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" } }
       10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{i+21}" } }
       get "/distinct?keys[]=user0:followers&keys[]=user1:followers&op=intersection"
-      (JSON.parse(last_response.body)['count'] - 30).abs.should < 10
+      JSON.parse(last_response.body)['count'].should be_within(10).of(30)
     end
   end
 
@@ -116,19 +116,29 @@ describe 'Flux' do
       17.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" }
       17.times { |i| get "/event/client:gravity:action:unfollow:user?followed=user0&follower=user#{i+1}" }
       get "/gross?keys[]=user0:followers"
-      JSON.parse(last_response.body)['count'].should == 17
+      JSON.parse(last_response.body)['count'].should be_within(5).of(17)
     end
     it "returns 0 if the set doesn't exist" do
       get "/gross?keys[]=badUser:followers"
       JSON.parse(last_response.body)['count'].should == 0
     end
-    it "returns a correct union count for sets" do
+    it "returns a correct concatenated count for sets" do
       17.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" }
       17.times { |i| get "/event/client:gravity:action:unfollow:user?followed=user0&follower=user#{i+1}" }
       17.times { |i| get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{i+1}" }
       17.times { |i| get "/event/client:gravity:action:unfollow:user?followed=user1&follower=user#{i+1}" }
       get "/gross?keys[]=user0:followers&keys[]=user1:followers"
-      JSON.parse(last_response.body)['count'].should == 34
+      JSON.parse(last_response.body)['count'].should be_within(10).of(34)
+    end
+    it "counts keys added with the same op counter to be identical" do
+      5.times do
+        17.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}&@score=0" }
+        17.times { |i| get "/event/client:gravity:action:unfollow:user?followed=user0&follower=user#{i+1}&@score=0" }
+      end
+      17.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" }
+      17.times { |i| get "/event/client:gravity:action:unfollow:user?followed=user0&follower=user#{i+1}" }
+      get "/gross?keys[]=user0:followers&keys[]=user1:followers"
+      JSON.parse(last_response.body)['count'].should be_within(10).of(34)
     end
   end
 
