@@ -3,6 +3,7 @@ require './sync_database.rb'
 describe 'SyncDatabase' do
   before :each do
     @redis = Object.new
+    @redis.stub(:flushdb) { 'OK' }
     Redis.stub(:connect) { @redis }
   end
   it "should exit normally when master_sync_in_progress transitions from 1 to 0" do
@@ -16,7 +17,7 @@ describe 'SyncDatabase' do
       end
     end
     @redis.should_receive(:slaveof).with("www.example.com", 1000).ordered
-    @redis.should_receive(:slaveof).with(nil, nil).ordered
+    @redis.should_receive(:slaveof).with('no', 'one').ordered
     SyncDatabase.perform({}, "redis://www.example.com:1000", {sleep_time: 0}) 
   end
   it "should raise an error if the master link is down for 10 consecutive polls" do
@@ -30,7 +31,7 @@ describe 'SyncDatabase' do
       end
     end
     @redis.should_receive(:slaveof).with("www.example.com", 1000).ordered
-    @redis.should_receive(:slaveof).with(nil, nil).ordered
+    @redis.should_receive(:slaveof).with('no', 'one').ordered
     lambda { SyncDatabase.perform({}, "redis://www.example.com:1000", {sleep_time: 0}) }.should raise_error
   end
 end
