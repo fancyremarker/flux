@@ -97,11 +97,17 @@ describe 'Flux' do
       get "/distinct?keys[]=badUser:followers"
       JSON.parse(last_response.body)['count'].should == 0
     end
-    pending "returns a correct union count for sets" do
+    it "returns a correct union count for sets" do
       10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" } }
       10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{i+31}" } }
-      get "/distinct?keys[]=user0:followers&keys[]=user1:followers"
+      get "/distinct?keys[]=user0:followers&keys[]=user1:followers&op=union"
       (JSON.parse(last_response.body)['count'] - 80).abs.should < 10
+    end
+    it "returns a correct intersection count for sets" do
+      10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user0&follower=user#{i+1}" } }
+      10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followed=user1&follower=user#{i+21}" } }
+      get "/distinct?keys[]=user0:followers&keys[]=user1:followers&op=intersection"
+      (JSON.parse(last_response.body)['count'] - 30).abs.should < 10
     end
   end
 

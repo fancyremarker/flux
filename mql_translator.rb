@@ -80,8 +80,17 @@ class MQLTranslator
     end
   end
 
-  def get_distinct_count(keys)
-    keys.inject(0) { |sum, key| sum + @counter.count("flux:distinct:#{key}") }
+  def get_distinct_count(keys, op = :union)
+    namespaced_keys = keys.map { |key| "flux:distinct:#{key}" }
+    if namespaced_keys.size == 0
+      0
+    elsif namespaced_keys.size == 1
+      @counter.count(namespaced_keys[0])
+    elsif op.to_s == 'union'
+      @counter.union(*namespaced_keys)
+    elsif op.to_s == 'intersection'
+      @counter.intersection(*namespaced_keys)
+    end
   end
 
   def get_gross_count(keys)
