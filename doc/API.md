@@ -77,10 +77,21 @@ Flux keeps track of two types of counts: an estimate of the total number of
 distinct items that have ever been added to the set and a count of the total 
 number of adds that have been executed against the set.
 
-An estimate of the number of distinct items that have ever been added to a set (or union of sets) is
+An estimate of the number of distinct items that have ever been added to a set is
 available at `/distinct/`:
 
     http://flux.art.sy/distinct?keys[]=user:50000d:followers
+
+When requesting a count across multiple sets, it is possible to query the approximate
+cardinality of either the union or the intersection of the sets. For example, if set
+"user:50000d:followers" has 20 elements and set "user:60000e:followers" has 20 elements, with the two sets having 10 elements in common, one could specify either `op=union` or
+`op=intersection`, like so:
+
+    http://flux.art.sy/distinct?op=union&keys[]=user:50000d:followers&keys[]=user:60000e:followers
+    http://flux.art.sy/distinct?op=intersection&keys[]=user:50000d:followers&keys[]=user:60000e:followers
+
+The first request would return a count of approximately 30 (the union cardinality),
+while the second would return a count of approximately 10 (the intersection cardinality).
 
 A count of the total number of adds is available at `/gross/`:
 

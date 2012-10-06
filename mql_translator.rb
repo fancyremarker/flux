@@ -59,10 +59,10 @@ class MQLTranslator
       raise "Must specify either an add or remove handler" unless value_definition
       value = resolve_id(value_definition, event_name, args)
       store_values = handler['maxStoredValues'] != 0
+      timestamp = (Integer(args['@score']) rescue nil)
       if handler['add']
         if store_values
           @log.debug { "Appending '#{value}' to #{set_name}" }
-          timestamp = (Integer(args['@score']) rescue nil)
           @redis.zadd("flux:set:#{set_name}", op_counter(timestamp, value), value)
         end
         if handler['maxStoredValues'] && store_values
@@ -72,7 +72,7 @@ class MQLTranslator
         @log.debug { "Incrementing distinct count for #{set_name}" }
         @counter.add("flux:distinct:#{set_name}", value)
         @log.debug { "Incrementing gross count for #{set_name}" }
-        @redis.incr("flux:gross:#{set_name}")
+        @counter.add("flux:gross:#{set_name}", op_counter(timestamp, value).to_s)
       elsif handler['remove']
         @log.debug { "Removing '#{value}' from #{set_name}" }
         @redis.zrem("flux:set:#{set_name}", value)
@@ -80,12 +80,28 @@ class MQLTranslator
     end
   end
 
-  def get_distinct_count(keys)
-    keys.inject(0) { |sum, key| sum + @counter.count("flux:distinct:#{key}") }
+  def get_distinct_count(keys, op = :union)
+    namespaced_keys = keys.map { |key| "flux:distinct:#{key}" }
+    if namespaced_keys.size == 0
+      0
+    elsif namespaced_keys.size == 1
+      @counter.count(namespaced_keys[0])
+    elsif op.to_s == 'union'
+      @counter.union(*namespaced_keys)
+    elsif op.to_s == 'intersection'
+      @counter.intersection(*namespaced_keys)
+    end
   end
 
   def get_gross_count(keys)
-    keys.inject(0) { |sum, key| sum + @redis.get("flux:gross:#{key}").to_i }
+    namespaced_keys = keys.map { |key| "flux:gross:#{key}" }
+    if namespaced_keys.size == 0
+      0
+    elsif namespaced_keys.size == 1
+      @counter.count(namespaced_keys[0])
+    else
+      @counter.union(*namespaced_keys)
+    end
   end
 
   def op_counter(score = nil, value = nil)

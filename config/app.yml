@@ -1,8 +1,8 @@
 development:
   log_level: 'DEBUG'
   hyperloglog_precision: 10
-  app_redis_url: 'redis://localhost:6379/1'
-  resque_redis_url: 'redis://localhost:6379/0'
+  app_redis_url: 'redis://localhost:6379/0'
+  resque_redis_url: 'redis://localhost:6379/1'
 
 production:
   log_level: 'WARN'
