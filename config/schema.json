@@ -1,8 +1,14 @@
 {
   // User following another user
-  // Ex: GET http://flux.art.sy/event/client:gravity:action:follow:user?follower=user:4ff448&followed=user:50000d
+  // Ex: GET http://flux.art.sy/event/client:gravity:action:follow:user?follower=user:4ff448&followee=user:50000d
   // adds "user:4ff448" to the set user:50000d:followers
   "client:gravity:action:follow": [{
+    "targets": ["[followee].followers"],
+    "add": "follower"
+  }, {
+    "targets": ["[follower].sources"],
+    "add": "followee"
+  }, {
     "targets": ["[followed].followers"],
     "add": "follower"
   }, {
@@ -11,9 +17,15 @@
   }],
 
   // User unfollowing another user
-  // Ex: GET http://flux.art.sy/event/client:gravity:action:unfollow:user?follower=user:500001&followed=user:50000d
+  // Ex: GET http://flux.art.sy/event/client:gravity:action:unfollow:user?follower=user:500001&followee=user:50000d
   // removes "user:500001" from the set user:50000d:followers
   "client:gravity:action:unfollow": [{
+    "targets": ["[followee].followers"],
+    "remove": "follower"
+  }, {
+    "targets": ["[follower].sources"],
+    "remove": "followee"
+  }, {
     "targets": ["[followed].followers"],
     "remove": "follower"
   }, {

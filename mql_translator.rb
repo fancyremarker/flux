@@ -35,7 +35,11 @@ class MQLTranslator
     @schema.each_pair do |event_filter, handlers|
       next unless event_name.start_with?(event_filter)
       handlers.each do |handler|
-        execute_handler(handler, event_name, args)
+        begin
+          execute_handler(handler, event_name, args)
+        rescue Exception => e
+          throw e unless e.message =~ /^Undefined attribute/
+        end
       end
     end
 
@@ -156,7 +160,7 @@ class MQLTranslator
       id[1...-1]
     else
       value = args[id]
-      raise "Unknown attribute #{id}" unless value
+      raise "Undefined attribute #{id}" unless value
       value
     end
   end
