@@ -4,9 +4,9 @@ Getting Started with Flux
 Install SSH
 -----------
 
-Get a working SSH client. Generate a public/private key pair and upload it to 
-Github under [Account Settings, SSH Public Keys](https://github.com/account). 
-Refer to [troubleshooting ssh issues](http://help.github.com/troubleshooting-ssh/) 
+Get a working SSH client. Generate a public/private key pair and upload it to
+Github under [Account Settings, SSH Public Keys](https://github.com/account).
+Refer to [troubleshooting ssh issues](http://help.github.com/troubleshooting-ssh/)
 if you're having problems.
 
 Install Git
@@ -87,7 +87,7 @@ runs on localhost:5100.
 
 You can try out generating events and running queries via curl:
 
-    $ curl "http://localhost:5000/event/client:gravity:action:follow:user?follower=user:2&followed=user:1"
+    $ curl "http://localhost:5000/event/client:gravity:action:follow:user?follower=user:2&followee=user:1"
     $ curl "http://localhost:5000/event/client:gravity:action:post?user=user:1&post=post:1&@targets=[user].followers.feedItems&@add=post"
     $ curl http://localhost:5000/query/user:2:feedItems && echo
     {"results":["post:1"]}
