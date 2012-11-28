@@ -15,7 +15,7 @@ class SyncDatabase
     while consecutive_failed_attempts < max_consecutive_failures do
       sleep sleep_time
       info = app_redis.info
-      if info['master_link_status'] == 'down'
+      if info['master_link_status'] == 'down' && info['master_sync_in_progress'] == '0'
         consecutive_failed_attempts += 1
         next
       end
