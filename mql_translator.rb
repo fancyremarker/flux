@@ -25,6 +25,7 @@ class MQLTranslator
     log = Logger.new(STDOUT)
     log.level = Logger.const_get settings['log_level']
     app_redis = Redis.connect(url: (ENV['APP_REDIS_URL'] || settings['app_redis_url']))
+    app_redis.slaveof('no', 'one') if ENV['UNLINK_APP_REDIS'] || settings['unlink_app_redis']
     resque_redis = Redis.connect(url: (ENV['RESQUE_REDIS_URL'] || settings['resque_redis_url']))
     Resque.redis = resque_redis
     counter = HyperLogLog.new(app_redis, settings['hyperloglog_precision'])
