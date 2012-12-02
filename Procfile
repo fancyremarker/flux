@@ -1,3 +1,3 @@
 web: bundle exec ruby app.rb -o localhost -p $PORT
-resqueweb: bundle exec resque-web --no-launch --foreground -o localhost -p $PORT -r ${RESQUE_REDIS_URL:-redis://localhost:6379/1}
+resqueweb: bundle exec rackup -o localhost -p $PORT resqueweb.ru
 resqueworker: bundle exec rake resque:work
