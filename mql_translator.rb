@@ -121,7 +121,7 @@ class MQLTranslator
     start, stop = "inf", "-inf"
 
     if min_score && !min_score.empty?
-      stop = op_counter(min_score)
+      stop = op_counter(min_score.to_i + 1)
     end
 
     if cursor && !cursor.empty?

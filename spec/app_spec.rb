@@ -94,14 +94,14 @@ describe 'Flux' do
       it "accepts a minScore argument to restrict results" do
         get "/query?keys[]=user1:followers&minScore=10"
         response_json = JSON.parse(last_response.body)
-        response_json['results'].sort.should == ['user4', 'user5', 'user6'].sort
+        response_json['results'].sort.should == ['user5', 'user6'].sort
       end
       it "accepts both a minScore and maxScore to define a range of scores" do
         get "/query?keys[]=user1:followers&minScore=9&maxScore=11"
         response_json = JSON.parse(last_response.body)
-        response_json['results'].sort.should == ['user3', 'user4', 'user5'].sort
+        response_json['results'].sort.should == ['user4', 'user5'].sort
       end
-      it "doesn't get confused when minScore is bigger than maxScore" do
+      it "doesn't get confused when an empty range is specified by minScore and maxScore" do
         get "/query?keys[]=user1:followers&minScore=11&maxScore=9"
         response_json = JSON.parse(last_response.body)
         response_json['results'].should be_empty        
