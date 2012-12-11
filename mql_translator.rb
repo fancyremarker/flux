@@ -28,7 +28,7 @@ class MQLTranslator
     app_redis.slaveof('no', 'one') if ENV['UNLINK_APP_REDIS'] || settings['unlink_app_redis']
     resque_redis = Redis.connect(url: (ENV['RESQUE_REDIS_URL'] || settings['resque_redis_url']))
     Resque.redis = resque_redis
-    counter = HyperLogLog.new(app_redis, settings['hyperloglog_precision'])
+    counter = HyperLogLog::TimeSeriesCounter.new(app_redis, settings['hyperloglog_precision'])
     MQLTranslator.new(app_redis, counter, schema, {logger: log})
   end
 
@@ -74,10 +74,11 @@ class MQLTranslator
           @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
           @redis.zremrangebyrank(set_name, 0, -1 - handler['maxStoredValues'])
         end
-        @log.debug { "Incrementing distinct count for #{set_name}" }
-        @counter.add("flux:distinct:#{set_name}", value)
-        @log.debug { "Incrementing gross count for #{set_name}" }
-        @counter.add("flux:gross:#{set_name}", op_counter(timestamp, value).to_s)
+        count_timestamp = timestamp || Time.now.to_i
+        @log.debug { "Incrementing distinct count for #{set_name} using score #{count_timestamp}" }
+        @counter.add("flux:distinct:#{set_name}", value, count_timestamp)
+        @log.debug { "Incrementing gross count for #{set_name} using score #{count_timestamp}" }
+        @counter.add("flux:gross:#{set_name}", op_counter(timestamp, value).to_s, count_timestamp)
       elsif handler['remove']
         @log.debug { "Removing '#{value}' from #{set_name}" }
         @redis.zrem("flux:set:#{set_name}", value)
@@ -85,32 +86,22 @@ class MQLTranslator
     end
   end
 
-  def get_distinct_count(keys, op = :union)
+  def get_distinct_count(keys, op, min_score = nil)
     namespaced_keys = keys.map { |key| "flux:distinct:#{key}" }
-    if namespaced_keys.size == 0
-      0
-    elsif namespaced_keys.size == 1
-      @counter.count(namespaced_keys[0])
-    elsif op.to_s == 'union'
-      @counter.union(*namespaced_keys)
-    elsif op.to_s == 'intersection'
-      @counter.intersection(*namespaced_keys)
+    if op.to_s == 'intersection'
+      @counter.intersection(namespaced_keys, (min_score || 0).to_i)
+    else
+      @counter.union(namespaced_keys, (min_score || 0).to_i)
     end
   end
 
-  def get_gross_count(keys)
+  def get_gross_count(keys, min_score = nil)
     namespaced_keys = keys.map { |key| "flux:gross:#{key}" }
-    if namespaced_keys.size == 0
-      0
-    elsif namespaced_keys.size == 1
-      @counter.count(namespaced_keys[0])
-    else
-      @counter.union(*namespaced_keys)
-    end
+    @counter.union(namespaced_keys, (min_score || 0).to_i)
   end
 
   def op_counter(score = nil, value = nil)
-    if score && score.to_i >= 0 && score.to_i < 2147483648 # 2**31
+    if score && score.to_i > 0 && score.to_i < 2147483648 # 2**31
       # Client has provided their own score; use it. Append a hash of the
       # value to break ties.
       value_bits = value ? MurmurHash3::V32.murmur3_32_str_hash(value) % 1048576 : 0
@@ -125,17 +116,21 @@ class MQLTranslator
     end
   end
 
-  def run_query(keys, max_results, cursor, max_score = nil)
-    if max_score && !max_score.empty?
-      start = op_counter(max_score.to_i + 1)
-      start = [ start, cursor.to_i ].min if cursor && !cursor.empty?
-    elsif cursor && !cursor.empty?
-      start = cursor
-    else
-      start = "inf"
+  def run_query(keys, max_results, cursor, score_range = [nil, nil])
+    min_score, max_score = score_range
+    start, stop = "inf", "-inf"
+
+    if min_score && !min_score.empty?
+      stop = op_counter(min_score.to_i + 1)
     end
 
-    all_results = keys.map { |key| @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "-inf", { withscores: true, limit: [0, max_results] }).reverse }
+    if cursor && !cursor.empty?
+      start = cursor
+    elsif max_score && !max_score.empty?
+      start = op_counter(max_score.to_i + 1)
+    end
+
+    all_results = keys.map { |key| @redis.zrevrangebyscore("flux:set:#{key}", "(#{start}", "#{stop}", { withscores: true, limit: [0, max_results] }).reverse }
     raw_results = max_results.times.map { (all_results.max_by { |results| (results.last || [nil,-1]).last } || []).pop }.compact
 
     results = raw_results.map { |result| result.first }.uniq

@@ -77,13 +77,35 @@ describe 'Flux' do
       response_json['next'].should_not be_nil
       response_json['results'].length.should == 50
     end
-    it "accepts a maxScore argument to restrict results" do
-      get "/event/client:gravity:action:follow:user?followee=user1&follower=user2&@score=9"
-      get "/event/client:gravity:action:follow:user?followee=user1&follower=user3&@score=10"
-      get "/event/client:gravity:action:follow:user?followee=user1&follower=user4&@score=11"
-      get "/query?keys[]=user1:followers&maxScore=10"
-      response_json = JSON.parse(last_response.body)
-      response_json['results'].should == ['user3', 'user2']
+    
+    describe "score ranges" do
+      before(:each) do
+        get "/event/client:gravity:action:follow:user?followee=user1&follower=user2&@score=8"
+        get "/event/client:gravity:action:follow:user?followee=user1&follower=user3&@score=9"
+        get "/event/client:gravity:action:follow:user?followee=user1&follower=user4&@score=10"
+        get "/event/client:gravity:action:follow:user?followee=user1&follower=user5&@score=11"
+        get "/event/client:gravity:action:follow:user?followee=user1&follower=user6&@score=12"
+      end
+      it "accepts a maxScore argument to restrict results" do
+        get "/query?keys[]=user1:followers&maxScore=10"
+        response_json = JSON.parse(last_response.body)
+        response_json['results'].sort.should == ['user2', 'user3', 'user4'].sort
+      end
+      it "accepts a minScore argument to restrict results" do
+        get "/query?keys[]=user1:followers&minScore=10"
+        response_json = JSON.parse(last_response.body)
+        response_json['results'].sort.should == ['user5', 'user6'].sort
+      end
+      it "accepts both a minScore and maxScore to define a range of scores" do
+        get "/query?keys[]=user1:followers&minScore=9&maxScore=11"
+        response_json = JSON.parse(last_response.body)
+        response_json['results'].sort.should == ['user4', 'user5'].sort
+      end
+      it "doesn't get confused when an empty range is specified by minScore and maxScore" do
+        get "/query?keys[]=user1:followers&minScore=11&maxScore=9"
+        response_json = JSON.parse(last_response.body)
+        response_json['results'].should be_empty        
+      end
     end
   end
 
@@ -109,6 +131,15 @@ describe 'Flux' do
       get "/distinct?keys[]=user0:followers&keys[]=user1:followers&op=intersection"
       JSON.parse(last_response.body)['count'].should be_within(10).of(30)
     end
+    it "accepts a minScore argument to restrict results" do
+      10.times { 50.times { |i| get "/event/client:gravity:action:follow:user?followee=user0&follower=user#{i+1}&@score=#{i+1}" } }
+      get "/distinct?keys[]=user0:followers&minScore=40"
+      JSON.parse(last_response.body)['count'].should be_within(5).of(10)
+    end
+    it "raises an error if maxScore is passed" do
+      get "/distinct?keys[]=user0:followers&maxScore=9000"
+      last_response.status.should == 400
+    end
   end
 
   describe "gross counts" do
@@ -132,13 +163,22 @@ describe 'Flux' do
     end
     it "counts keys added with the same op counter to be identical" do
       5.times do
-        17.times { |i| get "/event/client:gravity:action:follow:user?followee=user0&follower=user#{i+1}&@score=0" }
-        17.times { |i| get "/event/client:gravity:action:unfollow:user?followee=user0&follower=user#{i+1}&@score=0" }
+        17.times { |i| get "/event/client:gravity:action:follow:user?followee=user0&follower=user#{i+1}&@score=1" }
+        17.times { |i| get "/event/client:gravity:action:unfollow:user?followee=user0&follower=user#{i+1}&@score=1" }
       end
       17.times { |i| get "/event/client:gravity:action:follow:user?followee=user0&follower=user#{i+1}" }
       17.times { |i| get "/event/client:gravity:action:unfollow:user?followee=user0&follower=user#{i+1}" }
       get "/gross?keys[]=user0:followers&keys[]=user1:followers"
       JSON.parse(last_response.body)['count'].should be_within(10).of(34)
+    end
+    it "accepts a minScore argument to restrict results" do
+      50.times { |i| get "/event/client:gravity:action:follow:user?followee=user0&follower=user#{i+1}&@score=#{i+1}" }
+      get "/distinct?keys[]=user0:followers&minScore=40"
+      JSON.parse(last_response.body)['count'].should be_within(5).of(10)      
+    end
+    it "raises an error if maxScore is passed" do
+      get "/gross?keys[]=user0:followers&maxScore=9000"
+      last_response.status.should == 400
     end
   end
 

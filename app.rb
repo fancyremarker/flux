@@ -27,21 +27,21 @@ get '/query' do
   keys = params['keys'] || []
   max_results = params['maxResults'].to_i
   max_results = 50 if max_results < 1 or max_results > 50
-  cursor = params['cursor']
-  max_score = params['maxScore']
-  translator.run_query(keys, max_results, cursor, max_score).to_json
+  translator.run_query(keys, max_results, params['cursor'], [params['minScore'], params['maxScore']]).to_json
 end
 
 # Get a distinct add count
 get '/distinct' do
   content_type :json
-  { 'count' => translator.get_distinct_count(params['keys'], params['op']) }.to_json
+  halt 400, { error: "maxScore not supported" }.to_json if params['maxScore']
+  { 'count' => translator.get_distinct_count(params['keys'], params['op'], params['minScore']) }.to_json
 end
 
 # Get a gross add count
 get '/gross' do
   content_type :json
-  { 'count' => translator.get_gross_count(params['keys']) }.to_json
+  halt 400, { error: "maxScore not supported" }.to_json if params['maxScore']
+  { 'count' => translator.get_gross_count(params['keys'], params['minScore']) }.to_json
 end
 
 get '/up' do

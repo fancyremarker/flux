@@ -34,7 +34,7 @@ on the machine where you're sending events, but passing a time override like thi
 playing queued events or replaying events and having them show up in queries from Flux in
 roughly the same order as they occurred.
 
-Note that the argument to `@score` can be completely arbitrary; if the set to which you are sending events or storing values should be ordered by some parameter other than time (e.g., a game leaderboard), `@score` accepts any non-negative 31-bit integer argument.
+Note that the argument to `@score` can be completely arbitrary; if the set to which you are sending events or storing values should be ordered by some parameter other than time (e.g., a game leaderboard), `@score` accepts any positive 31-bit integer argument.
 
 The event API also allows setting MQL handlers at runtime. A single handler can be specified by passing `@targets[]`, along with `@add` or `@remove`, and optionally `@maxStoredValues`. For example:
 
@@ -70,6 +70,12 @@ To query the union of multiple sets, just pass the sets' keys as separate argume
 
     http://flux.art.sy/query?keys[]=user:50000d:followers&keys[]=user:60000e:followers
 
+Queries can be restricted to ranges of scores using one or both of the `minScore` and `maxScore` parameters, for example:
+
+    http://flux.art.sy/query?keys[]=user:50000d:followers&minScore=1000&maxScore=5000
+
+The results of the query will be all events in the score range `(minScore, maxScore]`. 
+
 Counts
 ======
 
@@ -96,3 +102,8 @@ while the second would return a count of approximately 10 (the intersection card
 A count of the total number of adds is available at `/gross/`:
 
     http://flux.art.sy/gross?keys[]=user:50000d:followers
+
+Both counts can be restricted to only events above a certain score with the `minScore` parameter, for example:
+
+    http://flux.art.sy/distinct?keys[]=user:50000d:followers&minScore=1000
+    http://flux.art.sy/gross?keys[]=user:50000d:followers&minScore=1000

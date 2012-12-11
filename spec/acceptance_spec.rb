@@ -102,7 +102,7 @@ describe 'Flux' do
       get "/event/client:gravity:action:post?user=user1&post=post1&@targets[]=[user].followers.feedItems&@add=post"
       get "/event/client:gravity:action:post?user=user2&post=post2&@targets[]=[user].followers.feedItems&@add=post"
       get "/event/client:gravity:action:post?user=user3&post=post3&@targets[]=[user].followers.feedItems&@add=post"
-      get "/event/client:gravity:action:post?user=user1&post=post4&@score=0&@targets[]=[user].followers.feedItems&@add=post"
+      get "/event/client:gravity:action:post?user=user1&post=post4&@score=1&@targets[]=[user].followers.feedItems&@add=post"
       get "/query?keys[]=user4:feedItems&maxResults=10"
       JSON.parse(last_response.body)['results'].should == ['post3', 'post2', 'post1', 'post4']
     end
