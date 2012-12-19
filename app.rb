@@ -39,10 +39,19 @@ get '/distinct' do
   { 'count' => translator.get_distinct_count(params['keys'], params['op'], params['minScore']) }.to_json
 end
 
+# Store a distinct add count to a temporary key
+post '/distinct' do
+  content_type :json
+  halt 400, { error: "maxScore not supported" }.to_json if params['maxScore']
+  halt 400, { error: "intersection not supported" }.to_json if params['op'] == 'intersection'
+  translator.store_distinct_count(params['keys'], params['op'], params['minScore']).to_json
+end
+
 # Get a gross add count
 get '/gross' do
   content_type :json
   halt 400, { error: "maxScore not supported" }.to_json if params['maxScore']
+  halt 400, { error: "intersection not supported" }.to_json if params['op'] == 'intersection'
   { 'count' => translator.get_gross_count(params['keys'], params['minScore']) }.to_json
 end
 
