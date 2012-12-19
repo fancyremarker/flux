@@ -140,6 +140,21 @@ describe 'Flux' do
       get "/distinct?keys[]=user0:followers&maxScore=9000"
       last_response.status.should == 400
     end
+    it "returns a valid temporary key and ttl from a POST" do
+      5.times { 20.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
+      5.times { 20.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+100}", followee: 'user1'}]].to_json } }
+      post "/distinct?keys[]=user0:followers&keys[]=user1:followers"
+      last_response.status.should == 200
+      response = JSON.parse(last_response.body)
+      response['ttl'].should > 0
+      get "/distinct?keys[]=#{response['key']}"
+      last_response.status.should == 200
+      JSON.parse(last_response.body)['count'].should be_within(5).of(40)
+    end
+    it "doesn't allow intersection in POST queries" do
+      post "/distinct?keys[]=user0:followers&keys[]=user1:followers&op=intersection"
+      last_response.status.should == 400
+    end
   end
 
   describe "gross counts" do
@@ -178,6 +193,10 @@ describe 'Flux' do
     end
     it "raises an error if maxScore is passed" do
       get "/gross?keys[]=user0:followers&maxScore=9000"
+      last_response.status.should == 400
+    end
+    it "raises an error if op=intersection is passed" do
+      get "/gross?keys[]=user0:followers&keys[]=user1:followers&op=intersection"
       last_response.status.should == 400
     end
   end
