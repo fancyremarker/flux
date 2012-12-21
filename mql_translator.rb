@@ -4,6 +4,7 @@ require 'json'
 require 'logger'
 require 'murmurhash3'
 require 'redis'
+require 'securerandom'
 require 'space-saver-redis'
 
 class MQLTranslator
@@ -13,6 +14,7 @@ class MQLTranslator
     @counter = counter
     @schema = schema
     @op_counter_lower_bits = 0
+    @stored_query_ttl = (ENV['STORED_QUERY_TTL'] || 300).to_i
     if options[:logger]
       @log = options[:logger]
     else
@@ -101,6 +103,15 @@ class MQLTranslator
     else
       @counter.union(namespaced_keys, (min_score || 0).to_i)
     end
+  end
+
+  def store_distinct_count(keys, op, min_score = nil)
+    key = SecureRandom.uuid
+    namespaced_keys = keys.map { |key| "flux:distinct:#{key}" }
+    target_key = "flux:distinct:#{key}"
+    @counter.union_store(target_key, namespaced_keys, (min_score || 0).to_i)
+    @redis.expire(target_key, @stored_query_ttl)
+    { 'key' => key, 'ttl' => @stored_query_ttl }
   end
 
   def get_gross_count(keys, min_score = nil)

@@ -96,6 +96,9 @@ Flux keeps track of two types of counts: an estimate of the total number of
 distinct items that have ever been added to the set and a count of the total
 number of adds that have been executed against the set.
 
+Distinct counts
+---------------
+
 An estimate of the number of distinct items that have ever been added to a set is
 available at `/distinct/`:
 
@@ -112,14 +115,43 @@ cardinality of either the union or the intersection of the sets. For example, if
 The first request would return a count of approximately 30 (the union cardinality),
 while the second would return a count of approximately 10 (the intersection cardinality).
 
+For more complicated distinct queries, you can POST the query and get a new (temporary) key that can be further combined with
+other keys in subsequent distinct queries. For example, a POST to 
+
+    http://flux.art.sy/distinct?op=union&keys[]=user:50000d:followers&keys[]=user:60000e:followers&minScore=3000
+
+Returns a JSON payload with a hash containing a new temporary key and the TTL (in seconds) for that key. The query above might return something like:
+
+    { 'key': '761e8505-cec6-4a21-a142-465ce0f4aec4', 'ttl': 300 }
+
+We could then continue querying with the new key for the next five minutes with a GET query like:
+
+    http://flux.art.sy/distinct?op=union&keys[]=761e8505-cec6-4a21-a142-465ce0f4aec4&keys[]=user:70000e:followers
+
+You can only store the results of a union query, so a POST to the URL
+
+    http://flux.art.sy/distinct?op=intersection&keys[]=user:50000d:followers&keys[]=user:60000e:followers
+
+will raise and error. However, you can intersect the values of temporary keys created via POSTs, so follow-up queries like GETs to URLs like
+
+    http://flux.art.sy/distinct?op=intersection&keys[]=761e8505-cec6-4a21-a142-465ce0f4aec4&keys[]=user:70000e:followers
+
+are okay.
+
+Gross counts
+------------
+
 A count of the total number of adds is available at `/gross/`:
 
     http://flux.art.sy/gross?keys[]=user:50000d:followers
 
-Both counts can be restricted to only events above a certain score with the `minScore` parameter, for example:
+Both distinct and gross counts can be restricted to only events above a certain score with the `minScore` parameter, for example:
 
     http://flux.art.sy/distinct?keys[]=user:50000d:followers&minScore=1000
     http://flux.art.sy/gross?keys[]=user:50000d:followers&minScore=1000
+
+`minScore` can also be applied to POSTed distinct queries, which allows you to combine several
+sets using different `minScore`s for each set.
 
 Frequency counts
 ================
@@ -132,3 +164,4 @@ Results are returned as an array of [value, estimated gross frequency] pairs, or
 You can limit the number of results returned by adding the `maxResults` parameter:
 
     http://flux.art.sy/top?key=artwork:views&maxResults=3
+
