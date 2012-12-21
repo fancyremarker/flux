@@ -44,11 +44,14 @@ roughly the same order as they occurred.
 
 Note that the argument to `@score` can be completely arbitrary; if the set to which you are sending events or storing values should be ordered by some parameter other than time (e.g., a game leaderboard), `@score` accepts any positive 31-bit integer argument.
 
+Setting Handlers at Runtime
+===========================
+
 The event API also allows setting MQL handlers at runtime by attaching them to the payload of a single event. 
-A single handler can be specified by passing `@targets[]`, along with `@add` or `@remove`, and optionally `@maxStoredValues`. For example,
+A single handler can be specified by passing `@targets[]`, along with `@add`, `@remove`, or `@countFrequency` and optionally `@maxStoredValues`. For example,
 you could POST the following body to `http://flux.art.sy/events`:
 
-    [['client:gravity:action:post', {'user': 'user1', 'post': 'post1', '@targets': '[user].followers.feedItems', '@add': 'post'}]]
+    [['client:gravity:action:post', {'user': 'user1', 'post': 'post1', '@targets': ['[user].followers.feedItems'], '@add': 'post'}]]
 
 Querying
 ========
@@ -117,3 +120,15 @@ Both counts can be restricted to only events above a certain score with the `min
 
     http://flux.art.sy/distinct?keys[]=user:50000d:followers&minScore=1000
     http://flux.art.sy/gross?keys[]=user:50000d:followers&minScore=1000
+
+Frequency counts
+================
+
+Frequency counts that are collected using the `countFrequency` operation can be queried with the `/top` route, for example:
+
+    http://flux.art.sy/top?key=artwork:views
+
+Results are returned as an array of [value, estimated gross frequency] pairs, ordered by descending estimated gross frequency.
+You can limit the number of results returned by adding the `maxResults` parameter:
+
+    http://flux.art.sy/top?key=artwork:views&maxResults=3

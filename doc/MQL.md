@@ -15,22 +15,30 @@ Here's a sample MQL schema:
 
     {
       "client:gravity:action": [{
-        "targets": ["['unique']", "[@eventName]", "[@day, @week, @month]"],
+        "targets": ["['unique']", "[@eventName]", "[@daily, @weekly, @monthly]"],
         "add": "@requestIP"
       }],
       "client:gravity:action:follow": [{
         "targets": ["[followee].followers"],
         "add": "follower"
-      }]
-    }
+      },
+      {
+        "targets": ["[followers]", "[@weekly]"],
+        "countFrequency": "followee",
+        "maxStoredValues": 10
+      }],
+   }
 
 Given the event with namespace "client:gravity:action:follow" and attributes
 `{'followee': 'user:a', 'follower': 'user:b'}`, both of the handlers in the
 schema above are triggered, since both "client:gravity:action:follow" and
 "client:gravity:action" are prefixes of the event namespace. When triggered,
 each handler expands its targets list into a list of key names, each of which
-represent sets of values, and adds the value of the `add` parameters to
-each of those sets.
+represent sets of values, and performs an action on the expanded key names
+using the value specified by "add" or "countFrequency". In the two "add"
+handlers, the specified value is added to a set of the most recent values
+seen, while the "countFrequency" operation keeps track of the top 10 values
+seen.
 
 Identifiers in MQL are either:
 * Single-quoted literals like `'unique'` above, which evaluate to themselves
@@ -74,11 +82,20 @@ could apply dot notation again to write artist ids:
     targets: ["['a','b'].artworks.artists"]
     add: "'artist:345'"
 
-Logically, the "add" command adds the value to a set whose values are sorted
-by the time they're added to the set. There's also a "remove" command that
-removes items from the set.
+Logically, the "add" operation adds the value to a set whose values are sorted
+by the time they're added to the set. There's also a "remove" operation that
+removes items from the set and a "countFrequency" operation that stores a 
+leaderboard of the top K items, by gross frequency, that have triggered the
+event. 
 
-You can bound the size of sets using the maxStoredValues field:
+A "countFrequency" handler might look like this:
+
+    targets: ["[artworkId].partnerId"]
+    countFrequency: "artworkId"
+
+and will store the top K (100 by default) artworks viewed, bucketed by partner.
+
+You can bound the size of sets and leaderboards using the maxStoredValues field:
 
     targets: ["['a','b'].artworks.artists"]
     add: "'artist:345'"
