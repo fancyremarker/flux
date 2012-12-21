@@ -201,6 +201,24 @@ describe 'Flux' do
     end
   end
 
+  describe "frequencies" do
+    it "returns approximate frequency counts" do
+      freq_schema = { '@targets' => ["['user:followed']"], '@countFrequency' => 'followee', '@maxStoredValues' => 3 }
+      20.times do |i|
+        10.times { |j| post "/events", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u3'}.merge(freq_schema)]].to_json }
+        2.times { |j| post "/events", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u0'}.merge(freq_schema)]].to_json }
+        7.times { |j| post "/events", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u1'}.merge(freq_schema)]].to_json }
+        4.times { |j| post "/events", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u2'}.merge(freq_schema)]].to_json }
+      end
+      get "/top?key=user:followed"
+      last_response.status.should == 200
+      json_response = JSON.parse(last_response.body)
+      scores = json_response.map{ |x| x.last }
+      scores.sort.reverse.should == scores
+      json_response.map{ |x| x.first }.should == ['u3', 'u1', 'u2']
+    end
+  end
+
   describe "up" do
     it "returns 'redis': true if Redis is up" do
       get "/up"

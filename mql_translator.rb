@@ -5,6 +5,7 @@ require 'logger'
 require 'murmurhash3'
 require 'redis'
 require 'securerandom'
+require 'space-saver-redis'
 
 class MQLTranslator
 
@@ -52,6 +53,7 @@ class MQLTranslator
         'targets'         => args['@targets'],
         'add'             => args['@add'],
         'remove'          => args['@remove'],
+        'countFrequency'  => args['@countFrequency'],
         'maxStoredValues' => (args['@maxStoredValues'].to_i if args['@maxStoredValues'])
       }
       execute_handler(runtime_args, event_name, args)
@@ -62,11 +64,12 @@ class MQLTranslator
     sorted_sets = resolve_keys(handler['targets'], event_name, args)
     sorted_sets.each_with_index do |set_name_components, i|
       set_name = set_name_components.join(':')
-      value_definition = handler['add'] || handler['remove']
-      raise "Must specify either an add or remove handler" unless value_definition
+      value_definition = handler['add'] || handler['remove'] || handler['countFrequency']
+      raise "Must specify either an add, remove, or countFrequency handler" unless value_definition
       value = resolve_id(value_definition, event_name, args)
       store_values = handler['maxStoredValues'] != 0
       timestamp = (Integer(args['@score']) rescue nil)
+
       if handler['add']
         if store_values
           @log.debug { "Appending '#{value}' to #{set_name}" }
@@ -84,7 +87,12 @@ class MQLTranslator
       elsif handler['remove']
         @log.debug { "Removing '#{value}' from #{set_name}" }
         @redis.zrem("flux:set:#{set_name}", value)
+      elsif handler['countFrequency']
+        @log.debug { "Updating leaderboard for #{set_name} with #{value}" }
+        leaderboard = SpaceSaver.new(@redis, handler['maxStoredValues'] || 10)
+        leaderboard.increment("flux:leaderboard:#{set_name}", value)
       end
+
     end
   end
 
@@ -152,6 +160,10 @@ class MQLTranslator
     end
   end
 
+  def leaderboard(key, max_results)
+    SpaceSaver.new(@redis, max_results || 100).leaders("flux:leaderboard:#{key}")
+  end
+
   def resolve_id(id, event_name, args)
     if id.start_with?('@')
       return args[id] if args[id]
@@ -160,6 +172,12 @@ class MQLTranslator
         event_name
       when 'uniqueId'
         op_counter.to_s
+      when 'daily'
+        Time.at(args['@score'] || Time.now).utc.strftime("daily-%d-%m-%y")
+      when 'weekly'
+        Time.at(args['@score'] || Time.now).utc.strftime("weekly-%U-%y")
+      when 'monthly'
+        Time.at(args['@score'] || Time.now).utc.strftime("monthly-%m-%y")
       else
         raise "Unknown identifier #{id}"
       end

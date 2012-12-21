@@ -15,7 +15,7 @@ post '/events' do
   if ENV['READ_ONLY'] =~ /1|yes|true/
     halt 501, { error: "This Flux server is read-only" }.to_json
   end
-  
+
   events = JSON.parse(request.body.read.to_s)
   events.each do |event_name, params|
     Resque.enqueue(QueuedEvent, config, event_name, params)
@@ -53,6 +53,12 @@ get '/gross' do
   halt 400, { error: "maxScore not supported" }.to_json if params['maxScore']
   halt 400, { error: "intersection not supported" }.to_json if params['op'] == 'intersection'
   { 'count' => translator.get_gross_count(params['keys'], params['minScore']) }.to_json
+end
+
+# Get an estimate of the top k leaderboard candidates for a key
+get '/top' do
+  content_type :json
+  translator.leaderboard(params['key'], params['maxResults']).to_json
 end
 
 get '/up' do

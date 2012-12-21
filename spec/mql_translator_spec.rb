@@ -25,6 +25,22 @@ describe MQLTranslator do
     it "should allow keys from the args hash as ids" do
       @translator.resolve_id("baz", "foo.bar", {"baz" => "foo"}).should == "foo"
     end
+    it "should create a UTC-based daily bucket from the @daily id" do
+      @translator.resolve_id("@daily", "foo.bar", {"@score" => Time.utc(2012,1,7).to_i}).should == "daily-07-01-12"
+      @translator.resolve_id("@daily", "foo.bar", {"@score" => Time.utc(2012,1,7,11,59).to_i}).should == "daily-07-01-12"
+      @translator.resolve_id("@daily", "foo.bar", {"@score" => Time.utc(2012,1,8).to_i}).should == "daily-08-01-12"
+    end
+    it "should create a UTC-based weekly bucket from the @daily id" do
+      @translator.resolve_id("@weekly", "foo.bar", {"@score" => Time.utc(2012,2,7).to_i}).should == "weekly-06-12" # Tuesday
+      @translator.resolve_id("@weekly", "foo.bar", {"@score" => Time.utc(2012,2,7,11,59).to_i}).should == "weekly-06-12"
+      @translator.resolve_id("@weekly", "foo.bar", {"@score" => Time.utc(2012,2,6).to_i}).should == "weekly-06-12" # Monday
+      @translator.resolve_id("@weekly", "foo.bar", {"@score" => Time.utc(2012,2,5).to_i}).should == "weekly-06-12" # Sunday
+      @translator.resolve_id("@weekly", "foo.bar", {"@score" => Time.utc(2012,2,4).to_i}).should == "weekly-05-12" # Saturday
+    end
+    it "should create a UTC-based monthly bucket from the @daily id" do
+      @translator.resolve_id("@monthly", "foo.bar", {"@score" => Time.utc(2012,1,31).to_i}).should == "monthly-01-12"
+      @translator.resolve_id("@monthly", "foo.bar", {"@score" => Time.utc(2012,2,1).to_i}).should == "monthly-02-12"
+    end
     it "should raise an error on a non-literal, non-server-defined id that isn't in the args hash" do
       lambda { @translator.resolve_id("baz", "foo.bar", {"bar" => "foo"}) }.should raise_error
     end
@@ -129,6 +145,14 @@ describe MQLTranslator do
       translator = MQLTranslator.new(@redis, @counter, schema)
       @redis.should_receive(:zadd).with('flux:set:counter:a', anything(), 'foobar').ordered
       translator.process_event('a.b', {'id' => 'foobar', '@targets' => ["['counter:a']"], '@add' => 'id' })
+    end
+    it "triggers leaderboard increments when countFrequency is specified" do
+      schema = {
+        'a' => [{'targets' => ["['foobar']"], 'countFrequency' => 'id'}]
+      }
+      translator = MQLTranslator.new(@redis, @counter, schema)
+      SpaceSaver.any_instance.should_receive(:increment).with('flux:leaderboard:foobar', 'foobar_id')
+      translator.process_event('a.b.c', {'id' => 'foobar_id'})      
     end
   end
 
