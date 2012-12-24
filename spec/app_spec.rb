@@ -11,9 +11,32 @@ describe 'Flux' do
     Sinatra::Application
   end
 
+  before(:each) do
+    @schema = {
+      "client:gravity:action:follow" => [{
+                                           "targets" => ["[followee].followers"],
+                                           "add" => "follower"
+                                         }, 
+                                         {
+                                           "targets" => ["[follower].sources"],
+                                           "add" => "followee"
+                                         }],
+      "client:gravity:action:unfollow" => [{
+                                             "targets" => ["[followee].followers"],
+                                             "remove" => "follower"
+                                           }, 
+                                           {
+                                             "targets" => ["[follower].sources"],
+                                             "remove" => "followee"
+                                           }]
+    }
+    post "/schema", @schema.to_json
+    @schema_id = JSON.parse(last_response.body)['id']
+  end
+
   describe "query paging" do
     before(:each) do
-      100.times { |i| post "/events", [['client:gravity:action:follow:user', {followee: 'user0', follower: "user#{i+1}"}]].to_json }
+      100.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {followee: 'user0', follower: "user#{i+1}"}]].to_json }
     end
     it "returns a cursor as part of the result set if results aren't exhausted" do
       get "/query?keys[]=user0:followers&maxResults=10"
@@ -43,10 +66,10 @@ describe 'Flux' do
       result_set_size = 1
 
       5.times do |i|
-        post "/events", [['client:gravity:action:follow:user', {follower: "user#{3*i+1}", followee: 'user1', '@score' => 3*i+1}],
-                         ['client:gravity:action:follow:user', {follower: "user#{3*i+2}", followee: 'user2', '@score' => 3*i+2}],
-                         ['client:gravity:action:follow:user', {follower: "user#{3*i+3}", followee: 'user3', '@score' => 3*i+3}],
-                         ['client:gravity:action:follow:user', {follower: "user#{3*i+3}", followee: 'user1', '@score' => 3*i+3}]].to_json
+        post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{3*i+1}", followee: 'user1', '@score' => 3*i+1}],
+                                       ['client:gravity:action:follow:user', {follower: "user#{3*i+2}", followee: 'user2', '@score' => 3*i+2}],
+                                       ['client:gravity:action:follow:user', {follower: "user#{3*i+3}", followee: 'user3', '@score' => 3*i+3}],
+                                       ['client:gravity:action:follow:user', {follower: "user#{3*i+3}", followee: 'user1', '@score' => 3*i+3}]].to_json
       end
 
       get "/query?keys[]=user1:followers&keys[]=user2:followers&keys[]=user3:followers&maxResults=#{result_set_size}"
@@ -80,11 +103,11 @@ describe 'Flux' do
     
     describe "score ranges" do
       before(:each) do
-        post "/events", [['client:gravity:action:follow:user', {follower: "user2", followee: 'user1', '@score' => 8}],
-                         ['client:gravity:action:follow:user', {follower: "user3", followee: 'user1', '@score' => 9}],
-                         ['client:gravity:action:follow:user', {follower: "user4", followee: 'user1', '@score' => 10}],
-                         ['client:gravity:action:follow:user', {follower: "user5", followee: 'user1', '@score' => 11}],
-                         ['client:gravity:action:follow:user', {follower: "user6", followee: 'user1', '@score' => 12}]].to_json
+        post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user2", followee: 'user1', '@score' => 8}],
+                                       ['client:gravity:action:follow:user', {follower: "user3", followee: 'user1', '@score' => 9}],
+                                       ['client:gravity:action:follow:user', {follower: "user4", followee: 'user1', '@score' => 10}],
+                                       ['client:gravity:action:follow:user', {follower: "user5", followee: 'user1', '@score' => 11}],
+                                       ['client:gravity:action:follow:user', {follower: "user6", followee: 'user1', '@score' => 12}]].to_json
       end
       it "accepts a maxScore argument to restrict results" do
         get "/query?keys[]=user1:followers&maxScore=10"
@@ -109,9 +132,41 @@ describe 'Flux' do
     end
   end
 
+  describe "schemas" do
+    it "accepts new schemas via POST" do
+      post "/schema", {'foo' => 'bar'}.to_json
+      last_response.status.should == 200
+      JSON.parse(last_response.body).keys.should == ['id']
+    end
+    it "allows you to repost a schema and get the same id back" do
+      post "/schema", {'foo' => 'bar'}.to_json
+      last_response.status.should == 200
+      first_id = JSON.parse(last_response.body)['id']
+      post "/schema", {'foo' => 'bar'}.to_json
+      last_response.status.should == 200
+      JSON.parse(last_response.body)['id'].should == first_id
+    end
+    it "allows schemas to be retrieved by id" do
+      get "/schema/#{@schema_id}"
+      last_response.status.should == 200
+      schema_data = JSON.parse(last_response.body)
+      schema_data['id'].should == @schema_id
+      schema_data['schema'].should == @schema
+    end
+    it "can return a list of all registered schema ids" do
+      known_ids = [@schema_id]
+      post "/schema", {'foo' => 'bar'}.to_json
+      known_ids << JSON.parse(last_response.body)['id']
+      post "/schema", {'bar' => 'baz'}.to_json
+      known_ids << JSON.parse(last_response.body)['id']
+      get "/schemas"
+      JSON.parse(last_response.body).sort.should == known_ids.sort
+    end
+  end
+
   describe "distinct counts" do
     it "returns a decent correct distinct add event count for a set" do
-      10.times { 50.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
+      10.times { 50.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
       get "/distinct?keys[]=user0:followers"
       JSON.parse(last_response.body)['count'].should be_within(10).of(50)
     end
@@ -120,19 +175,19 @@ describe 'Flux' do
       JSON.parse(last_response.body)['count'].should == 0
     end
     it "returns a correct union count for sets" do
-      10.times { 50.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
-      10.times { 50.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+31}", followee: 'user1'}]].to_json } } 
+      10.times { 50.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
+      10.times { 50.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+31}", followee: 'user1'}]].to_json } } 
       get "/distinct?keys[]=user0:followers&keys[]=user1:followers&op=union"
       JSON.parse(last_response.body)['count'].should be_within(10).of(80)
     end
     it "returns a correct intersection count for sets" do
-      10.times { 50.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
-      10.times { 50.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+21}", followee: 'user1'}]].to_json } } 
+      10.times { 50.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
+      10.times { 50.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+21}", followee: 'user1'}]].to_json } } 
       get "/distinct?keys[]=user0:followers&keys[]=user1:followers&op=intersection"
       JSON.parse(last_response.body)['count'].should be_within(10).of(30)
     end
     it "accepts a minScore argument to restrict results" do
-      10.times { 50.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0', '@score' => i+1}]].to_json } } 
+      10.times { 50.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0', '@score' => i+1}]].to_json } } 
       get "/distinct?keys[]=user0:followers&minScore=40"
       JSON.parse(last_response.body)['count'].should be_within(5).of(10)
     end
@@ -141,8 +196,8 @@ describe 'Flux' do
       last_response.status.should == 400
     end
     it "returns a valid temporary key and ttl from a POST" do
-      5.times { 20.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
-      5.times { 20.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+100}", followee: 'user1'}]].to_json } }
+      5.times { 20.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json } }
+      5.times { 20.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+100}", followee: 'user1'}]].to_json } }
       post "/distinct?keys[]=user0:followers&keys[]=user1:followers"
       last_response.status.should == 200
       response = JSON.parse(last_response.body)
@@ -159,8 +214,8 @@ describe 'Flux' do
 
   describe "gross counts" do
     it "returns a correct gross add event count for a set" do
-      17.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
-      17.times { |i| post "/events", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
+      17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
+      17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
       get "/gross?keys[]=user0:followers"
       JSON.parse(last_response.body)['count'].should be_within(5).of(17)
     end
@@ -169,25 +224,25 @@ describe 'Flux' do
       JSON.parse(last_response.body)['count'].should == 0
     end
     it "returns a correct concatenated count for sets" do
-      17.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
-      17.times { |i| post "/events", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
-      17.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user1'}]].to_json }
-      17.times { |i| post "/events", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user1'}]].to_json }
+      17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
+      17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
+      17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user1'}]].to_json }
+      17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user1'}]].to_json }
       get "/gross?keys[]=user0:followers&keys[]=user1:followers"
       JSON.parse(last_response.body)['count'].should be_within(10).of(34)
     end
     it "counts keys added with the same op counter to be identical" do
       5.times do
-        17.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0', '@score' => 1}]].to_json }
-        17.times { |i| post "/events", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user0', '@score' => 1}]].to_json }
+        17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0', '@score' => 1}]].to_json }
+        17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user0', '@score' => 1}]].to_json }
       end
-      17.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
-      17.times { |i| post "/events", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
+      17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
+      17.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:unfollow:user', {follower: "user#{i+1}", followee: 'user0'}]].to_json }
       get "/gross?keys[]=user0:followers&keys[]=user1:followers"
       JSON.parse(last_response.body)['count'].should be_within(10).of(34)
     end
     it "accepts a minScore argument to restrict results" do
-      50.times { |i| post "/events", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0', '@score' => i+1}]].to_json }
+      50.times { |i| post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user#{i+1}", followee: 'user0', '@score' => i+1}]].to_json }
       get "/distinct?keys[]=user0:followers&minScore=40"
       JSON.parse(last_response.body)['count'].should be_within(5).of(10)      
     end
@@ -205,10 +260,10 @@ describe 'Flux' do
     it "returns approximate frequency counts" do
       freq_schema = { '@targets' => ["['user:followed']"], '@countFrequency' => 'followee', '@maxStoredValues' => 3 }
       20.times do |i|
-        10.times { |j| post "/events", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u3'}.merge(freq_schema)]].to_json }
-        2.times { |j| post "/events", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u0'}.merge(freq_schema)]].to_json }
-        7.times { |j| post "/events", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u1'}.merge(freq_schema)]].to_json }
-        4.times { |j| post "/events", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u2'}.merge(freq_schema)]].to_json }
+        10.times { |j| post "/events/#{@schema_id}", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u3'}.merge(freq_schema)]].to_json }
+        2.times { |j| post "/events/#{@schema_id}", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u0'}.merge(freq_schema)]].to_json }
+        7.times { |j| post "/events/#{@schema_id}", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u1'}.merge(freq_schema)]].to_json }
+        4.times { |j| post "/events/#{@schema_id}", [['client:gravity:action:follow', {follower: "u#{i}:#{j}", followee: 'u2'}.merge(freq_schema)]].to_json }
       end
       get "/top?key=user:followed"
       last_response.status.should == 200
@@ -241,7 +296,7 @@ describe 'Flux' do
     it "rejects events if the READ_ONLY environment variable is set" do
       get "/query?keys[]=user1:followers&maxResults=10"
       last_response.status.should == 200
-      post "/events", [['client:gravity:action:follow:user', {follower: "user2", followee: 'user1'}]].to_json
+      post "/events/#{@schema_id}", [['client:gravity:action:follow:user', {follower: "user2", followee: 'user1'}]].to_json
       last_response.status.should == 501
     end
   end

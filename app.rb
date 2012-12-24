@@ -9,16 +9,35 @@ require './sync_database.rb'
 config = YAML.load(File.read('config/app.yml'))[ENV['RACK_ENV'] || 'development']
 translator = MQLTranslator.load(config)
 
+get '/schemas' do
+  content_type :json
+  translator.all_schema_ids.to_json
+end
+
+get '/schema/:schemaId' do
+  content_type :json
+  schema = translator.get_schema(params['schemaId'])
+  halt 404 unless schema
+  { 'id' => params['schemaId'], 'schema' => schema }.to_json
+end
+
+post '/schema' do
+  content_type :json
+  schema_id = translator.add_schema(request.body.read.to_s)
+  { 'id' => schema_id }.to_json
+end
+
 # Events are sent in the body of the POST, in a list of pairs of the form [event, params]
-post '/events' do
+post '/events/:schemaId' do
   content_type :json
   if ENV['READ_ONLY'] =~ /1|yes|true/
     halt 501, { error: "This Flux server is read-only" }.to_json
   end
 
+  schema_id = params['schemaId']
   events = JSON.parse(request.body.read.to_s)
-  events.each do |event_name, params|
-    Resque.enqueue(QueuedEvent, config, event_name, params)
+  events.each do |event_name, event_params|
+    Resque.enqueue(QueuedEvent, config, schema_id, event_name, event_params)
   end
   nil
 end

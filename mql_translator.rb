@@ -1,4 +1,5 @@
 require 'cartesian-product'
+require 'digest/sha1'
 require 'hyperloglog-redis'
 require 'json'
 require 'logger'
@@ -9,10 +10,10 @@ require 'space-saver-redis'
 
 class MQLTranslator
 
-  def initialize(redis, counter, schema, options={})
+  def initialize(redis, counter, options={})
     @redis = redis
     @counter = counter
-    @schema = schema
+    @schema_cache = {}
     @op_counter_lower_bits = 0
     @stored_query_ttl = (ENV['STORED_QUERY_TTL'] || 300).to_i
     if options[:logger]
@@ -24,7 +25,6 @@ class MQLTranslator
   end
 
   def self.load(settings)
-    schema = JSON.parse(File.open('config/schema.json').read)
     log = Logger.new(STDOUT)
     log.level = Logger.const_get settings['log_level']
     app_redis = Redis.connect(url: (ENV['APP_REDIS_URL'] || settings['app_redis_url']))
@@ -32,11 +32,37 @@ class MQLTranslator
     resque_redis = Redis.connect(url: (ENV['RESQUE_REDIS_URL'] || settings['resque_redis_url']))
     Resque.redis = resque_redis
     counter = HyperLogLog::TimeSeriesCounter.new(app_redis, settings['hyperloglog_precision'])
-    MQLTranslator.new(app_redis, counter, schema, {logger: log})
+    MQLTranslator.new(app_redis, counter, {logger: log})
   end
 
-  def process_event(event_name, args)
-    @schema.each_pair do |event_filter, handlers|
+  def all_schema_ids
+    @redis.hkeys('flux:schemas')
+  end
+
+  def get_schema(schema_id)
+    cached = @schema_cache[schema_id]
+    return cached if cached
+    schema = @redis.hget('flux:schemas', schema_id)
+    schema = JSON.parse(schema) if schema
+    @schema_cache[schema_id] = schema if schema
+    schema
+  end
+
+  def add_schema(schema)
+    Digest::SHA1.hexdigest(schema)[0...8].tap do |digest|
+      @schema_cache[digest] = JSON.parse(schema)
+      @redis.hset('flux:schemas', digest, schema)
+    end
+  end
+
+  def process_event(schema_id, event_name, args)
+    schema = get_schema(schema_id)
+    if !schema
+      @log.warn("Unknown schema #{schema_id} requested for event #{event_name}")
+      return
+    end
+
+    schema.each_pair do |event_filter, handlers|
       next unless event_name.start_with?(event_filter)
       handlers.each do |handler|
         begin
