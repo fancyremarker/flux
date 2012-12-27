@@ -7,23 +7,36 @@ values and counts.
 The actual events accepted and values queryable depend on the Flux schema.
 In what follows, we'll assume the following sample schema:
 
-    // User following another user
-    "client:gravity:action:follow": [{
-      "targets": ["[followee].followers"],
-      "add": "follower"
-    }]
+    {	
+      // User following another user
+      "client:gravity:action:follow": [{
+        "targets": ["[followee].followers"],
+        "add": "follower"
+      }]
+    }
+
+Schemas
+=======
+
+An MQL schema can be registered with Flux by sending an HTTP POST to `/schema` with the schema in 
+the body of the POST. The return value will be a JSON hash with the key `id` mapping to a unique
+handle for your schema. You can get all schema ids that Flux knows about by sending an HTTP GET to
+`schemas` and you can retrieve information about a schema by sending a GET to `schema/:schema_id`.
+
+In the examples that follow, we'll assume that we've already registered the sample schema with
+Flux and that we were given id "deadbeef" for the schema.
 
 Events
 ======
 
-To register an event with Flux, send an HTTP POST to `/events` with a body that consists of the JSON
+To register an event with Flux, send an HTTP POST to `/events/:schema_id` with a body that consists of the JSON
 string representing a list of pairs of event names and parameters. For example, to register the
 event "client:gravity:action:follow:user" with parameters `{ follower: user:4ff448, followee: user:50000d }`,
 you would post the body
 
     [['client:gravity:action:follow:user', { 'follower': 'user:4ff448', 'followee': 'user:50000d' }]]
 
-to the URL `http://flux.art.sy/events`. This request will add "user:4ff448" to the set user:50000d:followers.
+to the URL `http://flux.art.sy/events/deadbeef`. This request will add "user:4ff448" to the set user:50000d:followers.
 
 Multiple events can be sent in the same POST body. In the previous example, we could have sent two events
 in the same body by POSTing something like the following:
@@ -49,7 +62,7 @@ Setting Handlers at Runtime
 
 The event API also allows setting MQL handlers at runtime by attaching them to the payload of a single event. 
 A single handler can be specified by passing `@targets[]`, along with `@add`, `@remove`, or `@countFrequency` and optionally `@maxStoredValues`. For example,
-you could POST the following body to `http://flux.art.sy/events`:
+you could POST the following body to `http://flux.art.sy/events/deadbeef`:
 
     [['client:gravity:action:post', {'user': 'user1', 'post': 'post1', '@targets': ['[user].followers.feedItems'], '@add': 'post'}]]
 
