@@ -62,11 +62,12 @@ class MQLTranslator
 
   def execute_handler(handler, event_name, args)
     sorted_sets = resolve_keys(handler['targets'], event_name, args)
-    sorted_sets.each_with_index do |set_name_components, i|
+    sorted_sets.each do |set_name_components|
       set_name = set_name_components.join(':')
       value_definition = handler['add'] || handler['remove'] || handler['countFrequency']
       raise "Must specify either an add, remove, or countFrequency handler" unless value_definition
       value = resolve_id(value_definition, event_name, args)
+      next unless value
       store_values = handler['maxStoredValues'] != 0
       timestamp = (Integer(args['@score']) rescue nil)
 
@@ -184,9 +185,7 @@ class MQLTranslator
     elsif id.start_with?("'") and id.end_with?("'")
       id[1...-1]
     else
-      value = args[id]
-      raise "Undefined attribute #{id}" unless value
-      value
+      args[id]
     end
   end
 

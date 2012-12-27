@@ -41,8 +41,8 @@ describe MQLTranslator do
       @translator.resolve_id("@monthly", "foo.bar", {"@score" => Time.utc(2012,1,31).to_i}).should == "monthly-01-12"
       @translator.resolve_id("@monthly", "foo.bar", {"@score" => Time.utc(2012,2,1).to_i}).should == "monthly-02-12"
     end
-    it "should raise an error on a non-literal, non-server-defined id that isn't in the args hash" do
-      lambda { @translator.resolve_id("baz", "foo.bar", {"bar" => "foo"}) }.should raise_error
+    it "should return nil for a non-literal, non-server-defined id that isn't in the args hash" do
+      @translator.resolve_id("baz", "foo.bar", {"bar" => "foo"}).should be_nil
     end
   end
 
@@ -95,6 +95,14 @@ describe MQLTranslator do
       translator = MQLTranslator.new(@redis, @counter, schema)
       @redis.should_receive(:zadd).with('flux:set:mydata', anything(), 'foobar')
       translator.process_event('myevent', {'id' => 'foobar'})
+    end
+    it "triggers no event if the add/remove/countFrequency target doesn't exist in the event hash" do
+      schema = { 
+        'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
+      }
+      translator = MQLTranslator.new(@redis, @counter, schema)
+      @redis.should_receive(:zadd).with('flux:set:mydata', anything(), 'foobar').exactly(0).times
+      translator.process_event('myevent', {'wrong_id' => 'foobar'})
     end
     it "translates a remove event to a redis zrem" do
       schema = { 

@@ -50,6 +50,26 @@ Identifiers in MQL are either:
   event and `@day` evaluates to a label describing the current day on the
   server.
 
+If the identifier in an event handler can't be resolved from the rules above
+for a particular event (for example, a key from the event attributes that doesn't
+exist), the entire event is ignored. This makes optimistic schemas possible that
+implement conditional logic via silent failures, like:
+
+    {
+      "client:gravity:action": [{
+        "targets": ["['users']"],
+        "add": "userId"
+      }],
+      "client:gravity:action:": [{
+        "targets": ["['visitors']"
+        "add": "visitorId"
+      }
+    }
+
+The above schema will distribute any events with only userId defined to the users
+key, any events with only the visitorId key defined to the visitors key, and
+anything with both userId and visitorId definied to both keys.
+
 Identifiers can be grouped into expressions by either putting them into a list
 (like `[@day, @week, @month]` above) or joined together with the dot notation
 (like `[followee].followers` above.) The targets field takes a list of
