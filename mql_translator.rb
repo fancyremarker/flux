@@ -93,7 +93,7 @@ class MQLTranslator
       value_definition = handler['add'] || handler['remove'] || handler['countFrequency']
       raise "Must specify either an add, remove, or countFrequency handler" unless value_definition
       value = resolve_id(value_definition, event_name, args)
-      next unless value
+      next if value.to_s.length == 0
       store_values = handler['maxStoredValues'] != 0
       timestamp = (Integer(args['@score']) rescue nil)
 

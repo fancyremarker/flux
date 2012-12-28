@@ -105,8 +105,18 @@ describe MQLTranslator do
         'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
       }
       translator = MQLTranslator.new(@redis, @counter, schema)
+      schema_id = translator.add_schema(schema.to_json)
       @redis.should_receive(:zadd).with('flux:set:mydata', anything(), 'foobar').exactly(0).times
-      translator.process_event('myevent', {'wrong_id' => 'foobar'})
+      translator.process_event(schema_id, 'myevent', {'wrong_id' => 'foobar'})
+    end
+    it "triggers no event if the add/remove/countFrequency target resolves to an empty string" do
+      schema = { 
+        'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
+      }
+      translator = MQLTranslator.new(@redis, @counter, schema)
+      schema_id = translator.add_schema(schema.to_json)
+      @redis.should_receive(:zadd).with('flux:set:mydata', anything(), 'foobar').exactly(0).times
+      translator.process_event(schema_id, 'myevent', {'id' => ''})
     end
     it "translates a remove event to a redis zrem" do
       schema = {'myevent' => [{'targets' => ["['mydata']"], 'remove' => 'id'}]}
