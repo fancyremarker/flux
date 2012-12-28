@@ -11,7 +11,7 @@ translator = MQLTranslator.load(config)
 
 get '/schemas' do
   content_type :json
-  translator.all_schema_ids.to_json
+  translator.all_schema_ids.map{ |id| { 'id' => id, 'uri' => "/schema/#{id}" } }.to_json
 end
 
 get '/schema/:schemaId' do
@@ -24,11 +24,11 @@ end
 post '/schema' do
   content_type :json
   schema_id = translator.add_schema(request.body.read.to_s)
-  { 'id' => schema_id }.to_json
+  { 'id' => schema_id, 'uri' => "/schema/#{schema_id}" }.to_json
 end
 
 # Events are sent in the body of the POST, in a list of pairs of the form [event, params]
-post '/events/:schemaId' do
+post '/schema/:schemaId/events' do
   content_type :json
   if ENV['READ_ONLY'] =~ /1|yes|true/
     halt 501, { error: "This Flux server is read-only" }.to_json

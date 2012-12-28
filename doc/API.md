@@ -29,14 +29,14 @@ Flux and that we were given id "deadbeef" for the schema.
 Events
 ======
 
-To register an event with Flux, send an HTTP POST to `/events/:schema_id` with a body that consists of the JSON
+To register an event with Flux, send an HTTP POST to `/schema/:schema_id/events` with a body that consists of the JSON
 string representing a list of pairs of event names and parameters. For example, to register the
 event "client:gravity:action:follow:user" with parameters `{ follower: user:4ff448, followee: user:50000d }`,
 you would post the body
 
     [['client:gravity:action:follow:user', { 'follower': 'user:4ff448', 'followee': 'user:50000d' }]]
 
-to the URL `http://flux.art.sy/events/deadbeef`. This request will add "user:4ff448" to the set user:50000d:followers.
+to the URL `http://flux.art.sy/schema/deadbeef/events`. This request will add "user:4ff448" to the set user:50000d:followers.
 
 Multiple events can be sent in the same POST body. In the previous example, we could have sent two events
 in the same body by POSTing something like the following:
@@ -60,9 +60,9 @@ Note that the argument to `@score` can be completely arbitrary; if the set to wh
 Setting Handlers at Runtime
 ===========================
 
-The event API also allows setting MQL handlers at runtime by attaching them to the payload of a single event. 
+The event API also allows setting additional MQL handlers at runtime by attaching them to the payload of a single event. 
 A single handler can be specified by passing `@targets[]`, along with `@add`, `@remove`, or `@countFrequency` and optionally `@maxStoredValues`. For example,
-you could POST the following body to `http://flux.art.sy/events/deadbeef`:
+you could POST the following body to `http://flux.art.sy/schema/deadbeef/events`:
 
     [['client:gravity:action:post', {'user': 'user1', 'post': 'post1', '@targets': ['[user].followers.feedItems'], '@add': 'post'}]]
 
