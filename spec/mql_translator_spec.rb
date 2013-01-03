@@ -93,6 +93,14 @@ describe MQLTranslator do
       @redis.stub(:zremrangebyrank) { 0 }
       @redis.stub(:incr) { }
     end
+    it "raises an error if an unknown schema is requested" do
+      schema = {'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]}
+      translator = MQLTranslator.new(@redis, @counter)
+      schema_id = translator.add_schema(schema.to_json)
+      @redis.stub(:zadd) {}
+      translator.process_event(schema_id, 'myevent', {'id' => 'foobar'})
+      lambda { translator.process_event('noschema', 'myevent', {'id' => 'foobar'}) }.should raise_error
+    end
     it "translates an add event to a redis zadd" do
       schema = {'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]}
       translator = MQLTranslator.new(@redis, @counter)

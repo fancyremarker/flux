@@ -57,10 +57,7 @@ class MQLTranslator
 
   def process_event(schema_id, event_name, args)
     schema = get_schema(schema_id)
-    if !schema
-      @log.warn("Unknown schema #{schema_id} requested for event #{event_name}")
-      return
-    end
+    raise "Unknown schema #{schema_id} requested for event #{event_name}" unless schema
 
     schema.each_pair do |event_filter, handlers|
       next unless event_name.start_with?(event_filter)
