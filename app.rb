@@ -4,7 +4,10 @@ require 'sinatra'
 
 require './mql_translator.rb'
 require './queued_event.rb'
+require './always_request_body.rb'
 require './sync_database.rb'
+
+use AlwaysRequestBody
 
 config = YAML.load(File.read('config/app.yml'))[ENV['RACK_ENV'] || 'development']
 translator = MQLTranslator.load(config)
