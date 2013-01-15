@@ -129,3 +129,13 @@ singleton member. A maxStoredValues value of 0 can be used if you're only
 interested in storing counts for an event, but never want to actually query
 the members of the set.
 
+You can disable either gross or distinct counters by setting the storeGrossCounters
+and storeDistinctCounters fields, respectively, to false (both default to true
+if not specified):
+
+    targets: ["['a','b'].artworks.artists"]
+    add: "'artist:345'"
+    storeGrossCounters: false,
+    storeDistinctCounters: false
+
+
