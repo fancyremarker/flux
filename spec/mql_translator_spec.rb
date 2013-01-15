@@ -184,6 +184,24 @@ describe MQLTranslator do
       SpaceSaver.any_instance.should_receive(:increment).with('flux:leaderboard:foobar', 'foobar_id')
       translator.process_event(schema_id, 'a.b.c', {'id' => 'foobar_id'})      
     end
+    it "doesn't update distinct counters if the storeDistinctCounts option is false" do
+      schema = { 'a' => [{'targets' => ["['foobar']"], 'add' => 'id', 'storeDistinctCounts' => false, 'maxStoredValues' => 0}] }
+      translator = MQLTranslator.new(@redis, @counter)
+      schema_id = translator.add_schema(schema.to_json)
+      @counter.unstub(:add)
+      @counter.should_not_receive(:add).with('flux:distinct:foobar', anything(), anything())
+      @counter.should_receive(:add).with('flux:gross:foobar', anything(), anything())
+      translator.process_event(schema_id, 'a', {'id' => 'foobar_id'})
+    end
+    it "doesn't update gross counters if the storeGrossCounts option is false" do
+      schema = { 'a' => [{'targets' => ["['foobar']"], 'add' => 'id', 'storeGrossCounts' => false, 'maxStoredValues' => 0}] }
+      translator = MQLTranslator.new(@redis, @counter)
+      schema_id = translator.add_schema(schema.to_json)
+      @counter.unstub(:add)
+      @counter.should_receive(:add).with('flux:distinct:foobar', anything(), anything())
+      @counter.should_not_receive(:add).with('flux:gross:foobar', anything(), anything())
+      translator.process_event(schema_id, 'a', {'id' => 'foobar_id'})
+    end
   end
 
   describe "schema management" do

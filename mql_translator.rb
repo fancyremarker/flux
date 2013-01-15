@@ -104,10 +104,14 @@ class MQLTranslator
           @redis.zremrangebyrank(set_name, 0, -1 - handler['maxStoredValues'])
         end
         count_timestamp = timestamp || Time.now.to_i
-        @log.debug { "Incrementing distinct count for #{set_name} using score #{count_timestamp}" }
-        @counter.add("flux:distinct:#{set_name}", value, count_timestamp)
-        @log.debug { "Incrementing gross count for #{set_name} using score #{count_timestamp}" }
-        @counter.add("flux:gross:#{set_name}", op_counter(timestamp, value).to_s, count_timestamp)
+        if handler['storeDistinctCounts'] != false
+          @log.debug { "Incrementing distinct count for #{set_name} using score #{count_timestamp}" }
+          @counter.add("flux:distinct:#{set_name}", value, count_timestamp)
+        end
+        if handler['storeGrossCounts'] != false
+          @log.debug { "Incrementing gross count for #{set_name} using score #{count_timestamp}" }
+          @counter.add("flux:gross:#{set_name}", op_counter(timestamp, value).to_s, count_timestamp)
+        end
       elsif handler['remove']
         @log.debug { "Removing '#{value}' from #{set_name}" }
         @redis.zrem("flux:set:#{set_name}", value)
