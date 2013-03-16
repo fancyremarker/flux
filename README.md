@@ -40,4 +40,4 @@ Copyright and License
 
 MIT License, see [LICENSE](LICENSE.md) for details.
 
-(c) 2012 [Artsy, Inc.](http://artsy.github.com), [Aaron Windsor](https://github.com/aaw), [Frank Macreery](https://github.com/macreery) and Contributors.
+Copyright (c) 2013 [Artsy, Inc.](http://artsy.github.com), [Aaron Windsor](https://github.com/aaw), [Frank Macreery](https://github.com/macreery) and Contributors.
