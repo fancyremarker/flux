@@ -27,7 +27,7 @@ More information
 
 * [Getting Started](doc/GettingStarted.md)
 * [Running Tests](doc/RunningTests.md)
-* [MaQuery Language](doc/MQL.md)
+* [McQuery Language](doc/MQL.md)
 * [API] (doc/API.md)
 
 Contributing

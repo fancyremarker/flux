@@ -73,11 +73,11 @@ class MQLTranslator
     if args['@targets']
       # Explicitly enumerate accepted runtime args, to be safe
       runtime_args = {
-        'targets'         => args['@targets'],
-        'add'             => args['@add'],
-        'remove'          => args['@remove'],
-        'countFrequency'  => args['@countFrequency'],
-        'maxStoredValues' => (args['@maxStoredValues'].to_i if args['@maxStoredValues'])
+        'targets'           => args['@targets'],
+        'add'               => args['@add'],
+        'remove'            => args['@remove'],
+        'count_frequency'   => args['@count_frequency'],
+        'max_stored_values' => (args['@max_stored_values'].to_i if args['@max_stored_values'])
       }
       execute_handler(runtime_args, event_name, args)
     end
@@ -87,11 +87,11 @@ class MQLTranslator
     sorted_sets = resolve_keys(handler['targets'], event_name, args)
     sorted_sets.each do |set_name_components|
       set_name = set_name_components.join(':')
-      value_definition = handler['add'] || handler['remove'] || handler['countFrequency']
-      raise "Must specify either an add, remove, or countFrequency handler" unless value_definition
+      value_definition = handler['add'] || handler['remove'] || handler['count_frequency']
+      raise "Must specify either an add, remove, or count_frequency handler" unless value_definition
       value = resolve_id(value_definition, event_name, args)
       next if value.to_s.length == 0
-      store_values = handler['maxStoredValues'] != 0
+      store_values = handler['max_stored_values'] != 0
       timestamp = (Integer(args['@score']) rescue nil)
 
       if handler['add']
@@ -99,25 +99,25 @@ class MQLTranslator
           @log.debug { "Appending '#{value}' to #{set_name}" }
           @redis.zadd("flux:set:#{set_name}", op_counter(timestamp, value), value)
         end
-        if handler['maxStoredValues'] && store_values
-          @log.debug { "Trimming the stored set to hold at most #{handler['maxStoredValues']} values" }
-          @redis.zremrangebyrank(set_name, 0, -1 - handler['maxStoredValues'])
+        if handler['max_stored_values'] && store_values
+          @log.debug { "Trimming the stored set to hold at most #{handler['max_stored_values']} values" }
+          @redis.zremrangebyrank(set_name, 0, -1 - handler['max_stored_values'])
         end
         count_timestamp = timestamp || Time.now.to_i
-        if handler['storeDistinctCounts'] != false
+        if handler['store_distinct_counts'] != false
           @log.debug { "Incrementing distinct count for #{set_name} using score #{count_timestamp}" }
           @counter.add("flux:distinct:#{set_name}", value, count_timestamp)
         end
-        if handler['storeGrossCounts'] != false
+        if handler['store_gross_counts'] != false
           @log.debug { "Incrementing gross count for #{set_name} using score #{count_timestamp}" }
           @counter.add("flux:gross:#{set_name}", op_counter(timestamp, value).to_s, count_timestamp)
         end
       elsif handler['remove']
         @log.debug { "Removing '#{value}' from #{set_name}" }
         @redis.zrem("flux:set:#{set_name}", value)
-      elsif handler['countFrequency']
+      elsif handler['count_frequency']
         @log.debug { "Updating leaderboard for #{set_name} with #{value}" }
-        leaderboard = SpaceSaver.new(@redis, handler['maxStoredValues'] || 10)
+        leaderboard = SpaceSaver.new(@redis, handler['max_stored_values'] || 10)
         leaderboard.increment("flux:leaderboard:#{set_name}", value)
       end
 
@@ -198,9 +198,9 @@ class MQLTranslator
     if id.start_with?('@')
       return args[id] if args[id]
       case id[1..-1]
-      when 'eventName'
+      when 'event_name'
         event_name
-      when 'uniqueId'
+      when 'unique_id'
         op_counter.to_s
       when 'daily'
         Time.at(args['@score'] || Time.now).utc.strftime("daily-%d-%m-%y")

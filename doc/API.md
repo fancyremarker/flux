@@ -7,7 +7,7 @@ values and counts.
 The actual events accepted and values queryable depend on the Flux schema.
 In what follows, we'll assume the following sample schema:
 
-    {	
+    {
       // User following another user
       "client:gravity:action:follow": [{
         "targets": ["[followee].followers"],
@@ -18,7 +18,7 @@ In what follows, we'll assume the following sample schema:
 Schemas
 =======
 
-An MQL schema can be registered with Flux by sending an HTTP POST to `/schema` with the schema in 
+An MQL schema can be registered with Flux by sending an HTTP POST to `/schema` with the schema in
 the body of the POST. The return value will be a JSON hash with the key `id` mapping to a unique
 handle for your schema. You can get all schema ids that Flux knows about by sending an HTTP GET to
 `schemas` and you can retrieve information about a schema by sending a GET to `schema/:schema_id`.
@@ -44,7 +44,7 @@ in the same body by POSTing something like the following:
     [['client:gravity:action:follow:user', { 'follower': 'user:4ff448', 'followee': 'user:50000d' }],
      ['client:gravity:action:follow:user', { 'follower': 'user:4ff449', 'followee': 'user:50000d' }]]
 
-Flux queries return data in the reverse order in which Flux received the events. You can override this timestamp when 
+Flux queries return data in the reverse order in which Flux received the events. You can override this timestamp when
 sending an event by passing a time override (in seconds since
 [the epoch](http://en.wikipedia.org/wiki/Epoch_\(reference_date\))) with the `@score` parameter by POSTing a body like this:
 
@@ -60,11 +60,11 @@ Note that the argument to `@score` can be completely arbitrary; if the set to wh
 Setting Handlers at Runtime
 ===========================
 
-The event API also allows setting additional MQL handlers at runtime by attaching them to the payload of a single event. 
-A single handler can be specified by passing `@targets[]`, along with `@add`, `@remove`, or `@countFrequency` and optionally `@maxStoredValues`. For example,
+The event API also allows setting additional MQL handlers at runtime by attaching them to the payload of a single event.
+A single handler can be specified by passing `@targets[]`, along with `@add`, `@remove`, or `@count_frequency` and optionally `@max_stored_values`. For example,
 you could POST the following body to `http://flux.art.sy/schema/deadbeef/events`:
 
-    [['client:gravity:action:post', {'user': 'user1', 'post': 'post1', '@targets': ['[user].followers.feedItems'], '@add': 'post'}]]
+    [['client:gravity:action:post', {'user': 'user1', 'post': 'post1', '@targets': ['[user].followers.feed_items'], '@add': 'post'}]]
 
 Querying
 ========
@@ -73,13 +73,13 @@ Query the members of a set by calling `/query`, and passing the set's key in the
 
     http://flux.art.sy/query?keys[]=user:50000d:followers
 
-You can add a `maxResults` parameter to restrict the size of the result set. `maxResults`
-defaults to 50 if it's omitted. If there are more than `maxResults` results, you'll get
+You can add a `max_results` parameter to restrict the size of the result set. `max_results`
+defaults to 50 if it's omitted. If there are more than `max_results` results, you'll get
 an opaque cursor back in the `next` field of the results. To continue paging through
 results, pass this cursor as the cursor parameter of the next call to same query. For
 example,
 
-    http://flux.art.sy/query?keys[]=user:50000d:followers&maxResults=1
+    http://flux.art.sy/query?keys[]=user:50000d:followers&max_results=1
 
 might return
 
@@ -87,7 +87,7 @@ might return
 
 You can then call
 
-    http://flux.art.sy/query?keys[]=user:50000d:followers&maxResults=10&cursor=1234
+    http://flux.art.sy/query?keys[]=user:50000d:followers&max_results=10&cursor=1234
 
 To get the following 10 results. When there are no more results, you won't get a next
 field in the result.
@@ -96,11 +96,11 @@ To query the union of multiple sets, just pass the sets' keys as separate argume
 
     http://flux.art.sy/query?keys[]=user:50000d:followers&keys[]=user:60000e:followers
 
-Queries can be restricted to ranges of scores using one or both of the `minScore` and `maxScore` parameters, for example:
+Queries can be restricted to ranges of scores using one or both of the `min_score` and `max_score` parameters, for example:
 
-    http://flux.art.sy/query?keys[]=user:50000d:followers&minScore=1000&maxScore=5000
+    http://flux.art.sy/query?keys[]=user:50000d:followers&min_score=1000&max_score=5000
 
-The results of the query will be all events in the score range `(minScore, maxScore]`. 
+The results of the query will be all events in the score range `(min_score, max_score]`.
 
 Counts
 ======
@@ -129,9 +129,9 @@ The first request would return a count of approximately 30 (the union cardinalit
 while the second would return a count of approximately 10 (the intersection cardinality).
 
 For more complicated distinct queries, you can POST the query and get a new (temporary) key that can be further combined with
-other keys in subsequent distinct queries. For example, a POST to 
+other keys in subsequent distinct queries. For example, a POST to
 
-    http://flux.art.sy/distinct?op=union&keys[]=user:50000d:followers&keys[]=user:60000e:followers&minScore=3000
+    http://flux.art.sy/distinct?op=union&keys[]=user:50000d:followers&keys[]=user:60000e:followers&min_score=3000
 
 Returns a JSON payload with a hash containing a new temporary key and the TTL (in seconds) for that key. The query above might return something like:
 
@@ -158,23 +158,23 @@ A count of the total number of adds is available at `/gross/`:
 
     http://flux.art.sy/gross?keys[]=user:50000d:followers
 
-Both distinct and gross counts can be restricted to only events above a certain score with the `minScore` parameter, for example:
+Both distinct and gross counts can be restricted to only events above a certain score with the `min_score` parameter, for example:
 
-    http://flux.art.sy/distinct?keys[]=user:50000d:followers&minScore=1000
-    http://flux.art.sy/gross?keys[]=user:50000d:followers&minScore=1000
+    http://flux.art.sy/distinct?keys[]=user:50000d:followers&min_score=1000
+    http://flux.art.sy/gross?keys[]=user:50000d:followers&min_score=1000
 
-`minScore` can also be applied to POSTed distinct queries, which allows you to combine several
-sets using different `minScore`s for each set.
+`min_score` can also be applied to POSTed distinct queries, which allows you to combine several
+sets using different `min_score`s for each set.
 
 Frequency counts
 ================
 
-Frequency counts that are collected using the `countFrequency` operation can be queried with the `/top` route, for example:
+Frequency counts that are collected using the `count_frequency` operation can be queried with the `/top` route, for example:
 
     http://flux.art.sy/top?key=artwork:views
 
 Results are returned as an array of [value, estimated gross frequency] pairs, ordered by descending estimated gross frequency.
-You can limit the number of results returned by adding the `maxResults` parameter:
+You can limit the number of results returned by adding the `max_results` parameter:
 
-    http://flux.art.sy/top?key=artwork:views&maxResults=3
+    http://flux.art.sy/top?key=artwork:views&max_results=3
 

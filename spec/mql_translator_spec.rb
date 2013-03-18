@@ -19,13 +19,13 @@ describe MQLTranslator do
       @translator = MQLTranslator.new(@redis, @counter)
     end
     it "should recognize server-defined reserved ids" do
-      @translator.resolve_id("@eventName", "foo.bar", {}).should == "foo.bar"
+      @translator.resolve_id("@event_name", "foo.bar", {}).should == "foo.bar"
     end
     it "should raise an error on an unknown reserved id" do
       lambda { @translator.resolve_id("@UNDEFINED", "foo.bar", {}) }.should raise_error
     end
     it "should recognize literals" do
-      @translator.resolve_id("'literal'", "foo.bar", {"literal" => "it's-a-trap!"}).should == "literal" 
+      @translator.resolve_id("'literal'", "foo.bar", {"literal" => "it's-a-trap!"}).should == "literal"
     end
     it "should allow keys from the args hash as ids" do
       @translator.resolve_id("baz", "foo.bar", {"baz" => "foo"}).should == "foo"
@@ -68,7 +68,7 @@ describe MQLTranslator do
     end
     it "translates identifiers that occur in targets correctly" do
       expected_output = ['foo:mock.event.name', 'bar:mock.event.name']
-      @translator.resolve_keys(["['foo', baz]", "[@eventName]"], 'mock.event.name', {'baz' => 'bar'}).map{ |x| x.join(':') }.should == expected_output
+      @translator.resolve_keys(["['foo', baz]", "[@event_name]"], 'mock.event.name', {'baz' => 'bar'}).map{ |x| x.join(':') }.should == expected_output
     end
     it "resolves a single join correctly" do
       @translator.resolve_keys(["[foo].bar"], 'mock.event.name', {'foo' => 'FOO'}).map{ |x| x.join(':') }.should == ["FOO:bar"]
@@ -82,7 +82,7 @@ describe MQLTranslator do
     it "resolves a combination of joins and literal sets correctly" do
       @redis.should_receive(:zrevrange).with('flux:set:mock.event.name:foo', 0, -1).and_return(['item1', 'item2'])
       expected_output = ['item1:bar:a:C', 'item1:bar:b:C', 'item2:bar:a:C', 'item2:bar:b:C']
-      @translator.resolve_keys(["[@eventName].foo.bar", "['a','b']", "[c]"], "mock.event.name", {'c' => 'C'}).map{ |x| x.join(':') }.should == expected_output
+      @translator.resolve_keys(["[@event_name].foo.bar", "['a','b']", "[c]"], "mock.event.name", {'c' => 'C'}).map{ |x| x.join(':') }.should == expected_output
     end
   end
 
@@ -108,8 +108,8 @@ describe MQLTranslator do
       @redis.should_receive(:zadd).with('flux:set:mydata', anything(), 'foobar')
       translator.process_event(schema_id, 'myevent', {'id' => 'foobar'})
     end
-    it "triggers no event if the add/remove/countFrequency target doesn't exist in the event hash" do
-      schema = { 
+    it "triggers no event if the add/remove/count_frequency target doesn't exist in the event hash" do
+      schema = {
         'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
       }
       translator = MQLTranslator.new(@redis, @counter, schema)
@@ -117,8 +117,8 @@ describe MQLTranslator do
       @redis.should_receive(:zadd).with('flux:set:mydata', anything(), 'foobar').exactly(0).times
       translator.process_event(schema_id, 'myevent', {'wrong_id' => 'foobar'})
     end
-    it "triggers no event if the add/remove/countFrequency target resolves to an empty string" do
-      schema = { 
+    it "triggers no event if the add/remove/count_frequency target resolves to an empty string" do
+      schema = {
         'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id'}]
       }
       translator = MQLTranslator.new(@redis, @counter, schema)
@@ -133,8 +133,8 @@ describe MQLTranslator do
       @redis.should_receive(:zrem).with('flux:set:mydata', 'foobar')
       translator.process_event(schema_id, 'myevent', {'id' => 'foobar'})
     end
-    it "respects maxStoredValues directives by removing least recently added values from sets" do
-      schema = {'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id', 'maxStoredValues' => 3}]}
+    it "respects max_stored_values directives by removing least recently added values from sets" do
+      schema = {'myevent' => [{'targets' => ["['mydata']"], 'add' => 'id', 'max_stored_values' => 3}]}
       translator = MQLTranslator.new(@redis, @counter)
       schema_id = translator.add_schema(schema.to_json)
       @redis.stub(:zadd) { }
@@ -143,7 +143,7 @@ describe MQLTranslator do
       8.times { |i| translator.process_event(schema_id, 'myevent', {'id' => "foobar#{i}"}) }
     end
     it "triggers exactly the handlers that are keyed by prefixes of the event name" do
-      schema = { 
+      schema = {
         'a' => [{'targets' => ["['counter:a']"], 'add' => 'id'}],
         'a.b' => [{'targets' => ["['counter:a:b']"], 'add' => 'id'}],
         'a.b.c' => [{'targets' => ["['counter:a:b:c']"], 'add' => 'id'}],
@@ -158,7 +158,7 @@ describe MQLTranslator do
       translator.process_event(schema_id, 'a.b.c.d', {'id' => 'foobar'})
     end
     it "triggers all handlers associated with a single key in sequence" do
-      schema = { 
+      schema = {
         'a' => [{'targets' => ["['counter:a']"], 'add' => 'id'},
                 {'targets' => ["['counter:b']"], 'add' => 'id'},
                 {'targets' => ["['counter:c']"], 'add' => 'id'}]
@@ -177,15 +177,15 @@ describe MQLTranslator do
       @redis.should_receive(:zadd).with('flux:set:counter:a', anything(), 'foobar').ordered
       translator.process_event(schema_id, 'a.b', {'id' => 'foobar', '@targets' => ["['counter:a']"], '@add' => 'id' })
     end
-    it "triggers leaderboard increments when countFrequency is specified" do
-      schema = { 'a' => [{'targets' => ["['foobar']"], 'countFrequency' => 'id'}] }
+    it "triggers leaderboard increments when count_frequency is specified" do
+      schema = { 'a' => [{'targets' => ["['foobar']"], 'count_frequency' => 'id'}] }
       translator = MQLTranslator.new(@redis, @counter)
       schema_id = translator.add_schema(schema.to_json)
       SpaceSaver.any_instance.should_receive(:increment).with('flux:leaderboard:foobar', 'foobar_id')
-      translator.process_event(schema_id, 'a.b.c', {'id' => 'foobar_id'})      
+      translator.process_event(schema_id, 'a.b.c', {'id' => 'foobar_id'})
     end
-    it "doesn't update distinct counters if the storeDistinctCounts option is false" do
-      schema = { 'a' => [{'targets' => ["['foobar']"], 'add' => 'id', 'storeDistinctCounts' => false, 'maxStoredValues' => 0}] }
+    it "doesn't update distinct counters if the store_distinct_counts option is false" do
+      schema = { 'a' => [{'targets' => ["['foobar']"], 'add' => 'id', 'store_distinct_counts' => false, 'max_stored_values' => 0}] }
       translator = MQLTranslator.new(@redis, @counter)
       schema_id = translator.add_schema(schema.to_json)
       @counter.unstub(:add)
@@ -193,8 +193,8 @@ describe MQLTranslator do
       @counter.should_receive(:add).with('flux:gross:foobar', anything(), anything())
       translator.process_event(schema_id, 'a', {'id' => 'foobar_id'})
     end
-    it "doesn't update gross counters if the storeGrossCounts option is false" do
-      schema = { 'a' => [{'targets' => ["['foobar']"], 'add' => 'id', 'storeGrossCounts' => false, 'maxStoredValues' => 0}] }
+    it "doesn't update gross counters if the store_gross_counts option is false" do
+      schema = { 'a' => [{'targets' => ["['foobar']"], 'add' => 'id', 'store_gross_counts' => false, 'max_stored_values' => 0}] }
       translator = MQLTranslator.new(@redis, @counter)
       schema_id = translator.add_schema(schema.to_json)
       @counter.unstub(:add)
@@ -253,7 +253,7 @@ describe MQLTranslator do
       # These ids are used as scores in Redis sorted sets. Scores are stored
       # as double-precision floating point numbers, which use only 52 bits for
       # the significand. So, to make sure that we get the same integer out of
-      # Redis that we insert, we have to keep our ids expressable in <= 52 bits. 
+      # Redis that we insert, we have to keep our ids expressable in <= 52 bits.
 
       translator = MQLTranslator.new(@redis, @counter)
       1000.times.map { Math.log(translator.op_counter, 2) }.max.should <= 52

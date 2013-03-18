@@ -1,7 +1,7 @@
-MaQuery Language
+McQuery Language
 ================
 
-MaQuery Language (MQL) describes the translation of an event into a series of
+McQuery Language (MQL) describes the translation of an event into a series of
 writes to a flat key space in real time. An _event_ is a namespace plus an
 attribute hash, for example "client:gravity:action:post" along with the hash
 `{ 'user': 'user:1', 'post': 'post:3' }`. An MQL schema is a JSON hash that
@@ -15,8 +15,8 @@ Here's a sample MQL schema:
 
     {
       "client:gravity:action": [{
-        "targets": ["['unique']", "[@eventName]", "[@daily, @weekly, @monthly]"],
-        "add": "@requestIP"
+        "targets": ["['unique']", "[@event_name]", "[@daily, @weekly, @monthly]"],
+        "add": "@request_ip"
       }],
       "client:gravity:action:follow": [{
         "targets": ["[followee].followers"],
@@ -24,8 +24,8 @@ Here's a sample MQL schema:
       },
       {
         "targets": ["[followers]", "[@weekly]"],
-        "countFrequency": "followee",
-        "maxStoredValues": 10
+        "count_frequency": "followee",
+        "max_stored_values": 10
       }],
    }
 
@@ -35,18 +35,18 @@ schema above are triggered, since both "client:gravity:action:follow" and
 "client:gravity:action" are prefixes of the event namespace. When triggered,
 each handler expands its targets list into a list of key names, each of which
 represent sets of values, and performs an action on the expanded key names
-using the value specified by "add" or "countFrequency". In the two "add"
+using the value specified by "add" or "count_frequency". In the two "add"
 handlers, the specified value is added to a set of the most recent values
-seen, while the "countFrequency" operation keeps track of the top 10 values
+seen, while the "count_frequency" operation keeps track of the top 10 values
 seen.
 
 Identifiers in MQL are either:
 * Single-quoted literals like `'unique'` above, which evaluate to themselves
 * Keys from the triggering event's attributes, which evaluate to their
   respective values
-* Built-in variables like `@eventName`, `@requestIP`, or `@day` above, which
-  evaluate to strings on the server - `@eventName` evaluates to the namespace
-  of the triggering event, `@requestIP` returns the IP associated with the
+* Built-in variables like `@event_name`, `@request_ip`, or `@day` above, which
+  evaluate to strings on the server - `@event_name` evaluates to the namespace
+  of the triggering event, `@request_ip` returns the IP associated with the
   event and `@day` evaluates to a label describing the current day on the
   server.
 
@@ -58,17 +58,17 @@ implement conditional logic via silent failures, like:
     {
       "client:gravity:action": [{
         "targets": ["['users']"],
-        "add": "userId"
+        "add": "user_id"
       }],
       "client:gravity:action:": [{
         "targets": ["['visitors']"
-        "add": "visitorId"
+        "add": "visitor_id"
       }
     }
 
-The above schema will distribute any events with only userId defined to the users
-key, any events with only the visitorId key defined to the visitors key, and
-anything with both userId and visitorId definied to both keys.
+The above schema will distribute any events with only user_id defined to the users
+key, any events with only the visitor_id key defined to the visitors key, and
+anything with both user_id and visitor_id definied to both keys.
 
 Identifiers can be grouped into expressions by either putting them into a list
 (like `[@day, @week, @month]` above) or joined together with the dot notation
@@ -78,7 +78,7 @@ flattening out the resulting sets into keys by joining them with colons. For
 example,
 
     targets: ["['a']", "['b','c']", "['d','e','f']"]
-    add: "@requestIP"
+    add: "@request_ip"
 
 expands targets into the list of labels:
 
@@ -104,38 +104,36 @@ could apply dot notation again to write artist ids:
 
 Logically, the "add" operation adds the value to a set whose values are sorted
 by the time they're added to the set. There's also a "remove" operation that
-removes items from the set and a "countFrequency" operation that stores a 
+removes items from the set and a "count_frequency" operation that stores a
 leaderboard of the top K items, by gross frequency, that have triggered the
-event. 
+event.
 
-A "countFrequency" handler might look like this:
+A "count_frequency" handler might look like this:
 
-    targets: ["[artworkId].partnerId"]
-    countFrequency: "artworkId"
+    targets: ["[artwork_id].partner_id"]
+    count_frequency: "artwork_id"
 
 and will store the top K (100 by default) artworks viewed, bucketed by partner.
 
-You can bound the size of sets and leaderboards using the maxStoredValues field:
+You can bound the size of sets and leaderboards using the max_stored_values field:
 
     targets: ["['a','b'].artworks.artists"]
     add: "'artist:345'"
-    maxStoredValues: 10
+    max_stored_values: 10
 
 This will bound the size of the set at 10 items, removing values in a least
-recently added fashion. If you don't specify maxStoredValues, the size of
-the set is unbounded. A maxStoredValues value of 1 can be used to simulate
+recently added fashion. If you don't specify max_stored_values, the size of
+the set is unbounded. A max_stored_values value of 1 can be used to simulate
 a simple variable, since any addition to the set will evict the previous
-singleton member. A maxStoredValues value of 0 can be used if you're only
+singleton member. A max_stored_values value of 0 can be used if you're only
 interested in storing counts for an event, but never want to actually query
 the members of the set.
 
-You can disable either gross or distinct counters by setting the storeGrossCounters
-and storeDistinctCounters fields, respectively, to false (both default to true
+You can disable either gross or distinct counters by setting the store_gross_counters
+and store_distinct_counters fields, respectively, to false (both default to true
 if not specified):
 
     targets: ["['a','b'].artworks.artists"]
     add: "'artist:345'"
-    storeGrossCounters: false,
-    storeDistinctCounters: false
-
-
+    store_gross_counters: false,
+    store_distinct_counters: false

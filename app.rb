@@ -15,11 +15,11 @@ get '/schemas' do
   translator.all_schema_ids.map{ |id| { 'id' => id, 'uri' => "/schema/#{id}" } }.to_json
 end
 
-get '/schema/:schemaId' do
+get '/schema/:schema_id' do
   content_type :json
-  schema = translator.get_schema(params['schemaId'])
+  schema = translator.get_schema(params['schema_id'])
   halt 404 unless schema
-  { 'id' => params['schemaId'], 'schema' => schema }.to_json
+  { 'id' => params['schema_id'], 'schema' => schema }.to_json
 end
 
 post '/schema' do
@@ -29,13 +29,13 @@ post '/schema' do
 end
 
 # Events are sent in the body of the POST, in a list of pairs of the form [event, params]
-post '/schema/:schemaId/events' do
+post '/schema/:schema_id/events' do
   content_type :json
   if ENV['READ_ONLY'] =~ /1|yes|true/
     halt 501, { error: "This Flux server is read-only" }.to_json
   end
 
-  schema_id = params['schemaId']
+  schema_id = params['schema_id']
   events = JSON.parse(request.body.read.to_s)
   events.each do |event_name, event_params|
     Resque.enqueue(QueuedEvent, config, schema_id, event_name, event_params)
@@ -47,38 +47,38 @@ end
 get '/query' do
   content_type :json
   keys = params['keys'] || []
-  max_results = params['maxResults'].to_i
+  max_results = params['max_results'].to_i
   max_results = 50 if max_results < 1 or max_results > 50
-  translator.run_query(keys, max_results, params['cursor'], [params['minScore'], params['maxScore']]).to_json
+  translator.run_query(keys, max_results, params['cursor'], [params['min_score'], params['max_score']]).to_json
 end
 
 # Get a distinct add count
 get '/distinct' do
   content_type :json
-  halt 400, { error: "maxScore not supported" }.to_json if params['maxScore']
-  { 'count' => translator.get_distinct_count(params['keys'], params['op'], params['minScore']) }.to_json
+  halt 400, { error: "max_score not supported" }.to_json if params['max_score']
+  { 'count' => translator.get_distinct_count(params['keys'], params['op'], params['min_score']) }.to_json
 end
 
 # Store a distinct add count to a temporary key
 post '/distinct' do
   content_type :json
-  halt 400, { error: "maxScore not supported" }.to_json if params['maxScore']
+  halt 400, { error: "max_score not supported" }.to_json if params['max_score']
   halt 400, { error: "intersection not supported" }.to_json if params['op'] == 'intersection'
-  translator.store_distinct_count(params['keys'], params['op'], params['minScore']).to_json
+  translator.store_distinct_count(params['keys'], params['op'], params['min_score']).to_json
 end
 
 # Get a gross add count
 get '/gross' do
   content_type :json
-  halt 400, { error: "maxScore not supported" }.to_json if params['maxScore']
+  halt 400, { error: "max_score not supported" }.to_json if params['max_score']
   halt 400, { error: "intersection not supported" }.to_json if params['op'] == 'intersection'
-  { 'count' => translator.get_gross_count(params['keys'], params['minScore']) }.to_json
+  { 'count' => translator.get_gross_count(params['keys'], params['min_score']) }.to_json
 end
 
 # Get an estimate of the top k leaderboard candidates for a key
 get '/top' do
   content_type :json
-  translator.leaderboard(params['key'], params['maxResults']).to_json
+  translator.leaderboard(params['key'], params['max_results']).to_json
 end
 
 get '/up' do
