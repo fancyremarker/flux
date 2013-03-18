@@ -184,7 +184,9 @@ class MQLTranslator
     if raw_results.length < max_results
       { 'results' => results }
     else
-      { 'results' => results, 'next' => raw_results.last.last }
+      # Ruby 2.0.0 will stringify some high-precision Floats with scientific
+      # notation, so we'll force our own stringification here.
+      { 'results' => results, 'next' => ("%f" % raw_results.last.last) }
     end
   end
 
