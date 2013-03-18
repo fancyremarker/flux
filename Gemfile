@@ -16,4 +16,6 @@ group :development, :test do
   gem 'rack-test', '~> 0.6.1'
   gem 'rake', '~> 0.9.2.2'
   gem 'rspec', '~> 2.11.0'
+  gem 'right_aws', '~> 3.0.5'
+  gem 'progressbar', '~> 0.20.0'
 end
