@@ -3,8 +3,8 @@ require './mql_translator.rb'
 describe MQLTranslator do
 
   before :each do
-    @redis = Object.new
-    @counter = Object.new
+    @redis = double('redis')
+    @counter = double('counter')
     @counter.stub(:add) {}
     @counter.stub(:count) {}
 
@@ -240,8 +240,8 @@ describe MQLTranslator do
 
   describe "op_counter" do
     before(:each) do
-      @redis = Object.new
-      @counter = Object.new
+      @redis = double('redis')
+      @counter = double('counter')
     end
     it "should return a sequence of distinct ascending ids when called repeatedly" do
       translator = MQLTranslator.new(@redis, @counter)

@@ -2,7 +2,7 @@ require './sync_database.rb'
 
 describe 'SyncDatabase' do
   before :each do
-    @redis = Object.new
+    @redis = double('redis')
     @redis.stub(:flushdb) { 'OK' }
     Redis.stub(:connect) { @redis }
   end
@@ -18,7 +18,7 @@ describe 'SyncDatabase' do
     end
     @redis.should_receive(:slaveof).with("www.example.com", 1000).ordered
     @redis.should_receive(:slaveof).with('no', 'one').ordered
-    SyncDatabase.perform({}, "redis://www.example.com:1000", {sleep_time: 0}) 
+    SyncDatabase.perform({}, "redis://www.example.com:1000", {sleep_time: 0})
   end
   it "should raise an error if the master link is down for 10 consecutive polls" do
     times = 5
