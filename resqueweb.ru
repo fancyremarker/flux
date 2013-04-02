@@ -1,6 +1,7 @@
 require 'resque'
+require 'yaml'
 
-Resque.redis = ENV['RESQUE_REDIS_URL'] || 'redis://localhost:6379/1'
+Resque.redis = ENV['RESQUE_REDIS_URL'] || YAML.load(File.read('config/app.yml'))[ENV['RACK_ENV'] || 'development']['resque_redis_url']
 require 'resque/server'
 
 mount_at = ENV['RESQUEWEB_MOUNT_PATH'] || '/'
