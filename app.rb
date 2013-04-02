@@ -1,6 +1,7 @@
 require 'json'
 require 'resque'
 require 'sinatra'
+require 'yaml'
 
 require './mql_translator.rb'
 require './queued_event.rb'

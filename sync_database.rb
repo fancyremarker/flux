@@ -8,7 +8,7 @@ class SyncDatabase
     max_consecutive_failures = options[:max_consecutive_failures] || 10
     sleep_time = options[:sleep_time] || 5
     sync_uri = URI.parse(sync_url)
-    app_redis = Redis.connect(url: (ENV['APP_REDIS_URL'] || settings['app_redis_url']))
+    app_redis = Redis.connect(url: (ENV['APP_REDIS_URL'] || settings['app_redis_url']), timeout: 60)
     app_redis.flushdb
     app_redis.slaveof(sync_uri.host, sync_uri.port)
     consecutive_failed_attempts = 0
